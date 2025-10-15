@@ -110,6 +110,37 @@
         flex: 1;
         min-width: 0;
         overflow: hidden;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background 0.15s;
+      }
+
+      .app-title:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .app-title.editing {
+        background: rgba(255, 255, 255, 0.1);
+        cursor: text;
+      }
+
+      .url-input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 13px;
+        font-weight: 500;
+        font-family: inherit;
+        padding: 0;
+        margin: 0;
+      }
+
+      .url-input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
       }
 
       .device-name {
@@ -392,10 +423,15 @@
           webview.executeJavaScript('document.title')
             .then((title) => {
               const deviceNameEl = document.querySelector('.device-name');
-              deviceNameEl.textContent = title || 'Untitled';
+              if (deviceNameEl && !document.querySelector('.url-input')) {
+                deviceNameEl.textContent = title || 'Untitled';
+              }
             })
             .catch(() => {
-              document.querySelector('.device-name').textContent = 'Untitled';
+              const deviceNameEl = document.querySelector('.device-name');
+              if (deviceNameEl && !document.querySelector('.url-input')) {
+                deviceNameEl.textContent = 'Untitled';
+              }
             });
 
           // Extract and display domain
@@ -403,14 +439,79 @@
             try {
               const urlObj = new URL(url);
               const domain = urlObj.hostname;
-              document.querySelector('.device-info').textContent = domain;
+              const deviceInfoEl = document.querySelector('.device-info');
+              if (deviceInfoEl && !document.querySelector('.url-input')) {
+                deviceInfoEl.textContent = domain;
+              }
             } catch (e) {
-              document.querySelector('.device-info').textContent = url;
+              const deviceInfoEl = document.querySelector('.device-info');
+              if (deviceInfoEl && !document.querySelector('.url-input')) {
+                deviceInfoEl.textContent = url;
+              }
             }
           }
         } catch (err) {
           console.error('Error updating page info:', err);
         }
+      }
+
+      // Handle URL editing
+      let isEditingUrl = false;
+      
+      function startUrlEdit() {
+        if (isEditingUrl) return;
+        isEditingUrl = true;
+
+        const appTitle = document.querySelector('.app-title');
+        const currentUrl = webview.getURL();
+        
+        // Store original content
+        const originalContent = appTitle.innerHTML;
+        
+        // Replace with input
+        appTitle.classList.add('editing');
+        appTitle.innerHTML = `<input type="text" class="url-input" value="${currentUrl}" placeholder="Enter URL...">`;
+        
+        const input = appTitle.querySelector('.url-input');
+        input.focus();
+        input.select();
+        
+        // Handle Enter key
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            let url = input.value.trim();
+            if (url) {
+              // Add protocol if missing
+              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+              }
+              webview.loadURL(url);
+            }
+            endUrlEdit(originalContent);
+          } else if (e.key === 'Escape') {
+            endUrlEdit(originalContent);
+          }
+        });
+        
+        // Handle blur
+        input.addEventListener('blur', () => {
+          setTimeout(() => endUrlEdit(originalContent), 100);
+        });
+      }
+      
+      function endUrlEdit(originalContent) {
+        if (!isEditingUrl) return;
+        isEditingUrl = false;
+        
+        const appTitle = document.querySelector('.app-title');
+        appTitle.classList.remove('editing');
+        appTitle.innerHTML = originalContent;
+        
+        // Re-attach click listener
+        appTitle.addEventListener('click', startUrlEdit, { once: true });
+        
+        // Update with current page info
+        updatePageInfo();
       }
 
       // Navigation controls
@@ -420,6 +521,10 @@
       const refreshBtn = document.getElementById("refresh-btn");
 
       console.log("Webview element:", webview);
+
+      // Attach click listener to app title
+      const appTitle = document.querySelector('.app-title');
+      appTitle.addEventListener('click', startUrlEdit);
 
       webview.addEventListener("did-start-loading", () => {
         console.log("Webview started loading");
