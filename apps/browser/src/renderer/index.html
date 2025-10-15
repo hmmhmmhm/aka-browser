@@ -70,6 +70,23 @@
         background: #ffbd2e;
       }
 
+      .window-btn.maximize {
+        background: #28c840;
+      }
+
+      .window-btn.maximize:hover::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 5px;
+        height: 5px;
+        border: 1px solid rgba(0, 0, 0, 0.6);
+        border-radius: 1px;
+        background: transparent;
+      }
+
       .window-btn:hover::before {
         content: "";
         position: absolute;
@@ -364,6 +381,7 @@
         <div class="window-controls">
           <button class="window-btn close" id="close-btn"></button>
           <button class="window-btn minimize" id="minimize-btn"></button>
+          <button class="window-btn maximize" id="maximize-btn"></button>
         </div>
         <div class="app-title">
           <div class="device-name">Loading...</div>
@@ -563,6 +581,7 @@
       // Window controls
       const closeBtn = document.getElementById("close-btn");
       const minimizeBtn = document.getElementById("minimize-btn");
+      const maximizeBtn = document.getElementById("maximize-btn");
 
       closeBtn.addEventListener("click", () => {
         if (window.electronAPI) {
@@ -573,6 +592,12 @@
       minimizeBtn.addEventListener("click", () => {
         if (window.electronAPI) {
           window.electronAPI.minimizeWindow();
+        }
+      });
+
+      maximizeBtn.addEventListener("click", () => {
+        if (window.electronAPI) {
+          window.electronAPI.maximizeWindow();
         }
       });
 
