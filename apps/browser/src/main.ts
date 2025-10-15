@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
@@ -6,32 +6,62 @@ let mainWindow: BrowserWindow | null = null;
 // iPhone 15 Pro dimensions
 const IPHONE_WIDTH = 393;
 const IPHONE_HEIGHT = 852;
-const FRAME_PADDING = 20;
-const TOP_BAR_HEIGHT = 60;
+const FRAME_PADDING = 28; // 14px border on each side
+const TOP_BAR_HEIGHT = 52;
 
 function createWindow(): void {
   // Create the browser window with iPhone frame
   mainWindow = new BrowserWindow({
-    width: IPHONE_WIDTH + FRAME_PADDING * 2,
-    height: IPHONE_HEIGHT + FRAME_PADDING * 2 + TOP_BAR_HEIGHT,
+    width: IPHONE_WIDTH + FRAME_PADDING,
+    height: IPHONE_HEIGHT + FRAME_PADDING + TOP_BAR_HEIGHT,
+    minWidth: 300,
+    minHeight: 400,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
       webviewTag: true, // Enable webview tag
     },
-    titleBarStyle: 'hiddenInset',
-    backgroundColor: '#1a1a1a',
+    transparent: true,
+    frame: false,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    roundedCorners: true,
+    resizable: true,
   });
 
   // Load the main UI
   mainWindow.loadFile(path.join(__dirname, '../src/renderer/index.html'));
+
+  // Maintain aspect ratio on resize
+  mainWindow.on('will-resize', (event, newBounds) => {
+    const aspectRatio = (IPHONE_WIDTH + FRAME_PADDING) / (IPHONE_HEIGHT + FRAME_PADDING + TOP_BAR_HEIGHT);
+    const newWidth = newBounds.width;
+    const newHeight = Math.round(newWidth / aspectRatio);
+    
+    event.preventDefault();
+    mainWindow?.setBounds({
+      ...newBounds,
+      height: newHeight,
+    });
+  });
 
   // Open DevTools in development
   if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
 }
+
+// IPC handlers for window controls
+ipcMain.on('window-close', () => {
+  app.quit();
+});
+
+ipcMain.on('window-minimize', () => {
+  if (mainWindow) {
+    mainWindow.minimize();
+  }
+});
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {

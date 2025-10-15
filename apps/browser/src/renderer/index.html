@@ -13,27 +13,116 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      background: transparent;
       color: #ffffff;
       overflow: hidden;
-      -webkit-app-region: drag;
+      margin: 0;
+      padding: 0;
+    }
+
+    .app-container {
+      width: 100vw;
+      height: 100vh;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 
+        0 0 0 1px rgba(0, 0, 0, 0.8),
+        0 20px 60px rgba(0, 0, 0, 0.6);
+      -webkit-mask-image: -webkit-radial-gradient(white, black);
+      mask-image: radial-gradient(white, black);
     }
 
     .top-bar {
-      height: 60px;
+      height: 52px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
-      background: rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0 16px;
+      margin: 8px 8px 12px 8px;
+      background: rgba(40, 40, 40, 0.95);
+      backdrop-filter: blur(40px) saturate(180%);
+      border-radius: 12px;
+      -webkit-app-region: drag;
+      box-shadow: 
+        0 1px 0 rgba(255, 255, 255, 0.1) inset,
+        0 4px 16px rgba(0, 0, 0, 0.4),
+        0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      -webkit-app-region: no-drag;
+    }
+
+    .window-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .window-btn.close {
+      background: #ff5f57;
+    }
+
+    .window-btn.minimize {
+      background: #ffbd2e;
+    }
+
+
+    .window-btn:hover::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .window-btn.close:hover::before {
+      width: 6px;
+      height: 6px;
+      background: transparent;
+      border: none;
+    }
+
+    .window-btn.close:hover::after {
+      content: '×';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10px;
+      color: rgba(0, 0, 0, 0.7);
+      font-weight: bold;
     }
 
     .app-title {
-      font-size: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      color: rgba(255, 255, 255, 0.85);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .device-name {
+      font-size: 13px;
       font-weight: 600;
-      letter-spacing: 0.5px;
+    }
+
+    .device-info {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      font-weight: 400;
     }
 
     .controls {
@@ -43,27 +132,28 @@
     }
 
     .control-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
       border: none;
-      background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.7);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 16px;
     }
 
     .control-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.9);
     }
 
     .control-btn:active {
-      transform: translateY(0);
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(0.95);
     }
 
     .phone-frame {
@@ -74,10 +164,26 @@
       height: 100%;
       border-radius: 40px;
       background: transparent;
-      border: 14px solid #1a1a1a;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 14px solid #1c1c1e;
+      box-shadow: 
+        0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+        0 0 0 1px rgba(0, 0, 0, 0.8),
+        0 8px 24px rgba(0, 0, 0, 0.5),
+        0 16px 48px rgba(0, 0, 0, 0.3);
       pointer-events: none;
       box-sizing: border-box;
+    }
+
+    .phone-frame::before {
+      content: '';
+      position: absolute;
+      top: -14px;
+      left: -14px;
+      right: -14px;
+      bottom: -14px;
+      border-radius: 40px;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
     }
 
     .notch {
@@ -119,11 +225,13 @@
 
     .phone-container {
       position: absolute;
-      top: 80px;
-      left: 20px;
-      width: 393px;
-      height: 852px;
+      top: 72px;
+      left: 8px;
+      width: calc(100% - 16px);
+      height: calc(100% - 80px);
       z-index: 10;
+      overflow: hidden;
+      border-radius: 40px;
     }
 
     .webview-wrapper {
@@ -147,27 +255,36 @@
   </style>
 </head>
 <body>
-  <div class="top-bar">
-    <div class="app-title">aka-browser</div>
-    <div class="controls">
-      <button class="control-btn" id="back-btn" title="Back">←</button>
-      <button class="control-btn" id="forward-btn" title="Forward">→</button>
-      <button class="control-btn" id="refresh-btn" title="Refresh">↻</button>
+  <div class="app-container">
+    <div class="top-bar">
+      <div class="window-controls">
+        <button class="window-btn close" id="close-btn"></button>
+        <button class="window-btn minimize" id="minimize-btn"></button>
+      </div>
+      <div class="app-title">
+        <div class="device-name">iPhone 15 Pro</div>
+        <div class="device-info">iOS 28.0</div>
+      </div>
+      <div class="controls">
+        <button class="control-btn" id="back-btn" title="Back">←</button>
+        <button class="control-btn" id="forward-btn" title="Forward">→</button>
+        <button class="control-btn" id="refresh-btn" title="Refresh">↻</button>
+      </div>
     </div>
-  </div>
 
-  <div class="phone-container">
-    <div class="webview-wrapper">
-      <webview id="webview" src="https://www.google.com" partition="persist:main"></webview>
-    </div>
-    <div class="phone-frame">
-      <div class="notch"></div>
-      <div class="status-bar">
-        <div class="time" id="time">9:41</div>
-        <div class="indicators">
-          <span>📶</span>
-          <span>📡</span>
-          <span>🔋</span>
+    <div class="phone-container">
+      <div class="webview-wrapper">
+        <webview id="webview" src="https://www.google.com" partition="persist:main"></webview>
+      </div>
+      <div class="phone-frame">
+        <div class="notch"></div>
+        <div class="status-bar">
+          <div class="time" id="time">9:41</div>
+          <div class="indicators">
+            <span>📶</span>
+            <span>📡</span>
+            <span>🔋</span>
+          </div>
         </div>
       </div>
     </div>
@@ -222,6 +339,22 @@
 
     refreshBtn.addEventListener('click', () => {
       webview.reload();
+    });
+
+    // Window controls
+    const closeBtn = document.getElementById('close-btn');
+    const minimizeBtn = document.getElementById('minimize-btn');
+
+    closeBtn.addEventListener('click', () => {
+      if (window.electronAPI) {
+        window.electronAPI.closeWindow();
+      }
+    });
+
+    minimizeBtn.addEventListener('click', () => {
+      if (window.electronAPI) {
+        window.electronAPI.minimizeWindow();
+      }
     });
   </script>
 </body>
