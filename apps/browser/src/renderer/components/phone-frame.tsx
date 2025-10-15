@@ -21,7 +21,7 @@ function PhoneFrame({ webviewRef, time, themeColor, textColor }: PhoneFrameProps
                 partition="persist:main"
                 useragent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
                 // @ts-ignore - webview is a custom element
-                allowpopups
+                allowpopups="true"
                 className="w-full h-full bg-transparent border-none [user-select:auto] [-webkit-user-select:auto]"
               />
             </div>
