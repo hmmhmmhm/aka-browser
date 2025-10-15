@@ -102,6 +102,9 @@ ipcMain.on("window-maximize", () => {
   }
 });
 
+// Disable hardware acceleration to prevent webview crashes
+app.disableHardwareAcceleration();
+
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
   app.setName("Aka Browser");
@@ -128,6 +131,13 @@ app.on("web-contents-created", (event: any, contents: any) => {
   // Set iPhone User Agent for all web contents (including webviews)
   contents.setUserAgent(IPHONE_USER_AGENT);
 
+  // Disable hardware acceleration for webview to prevent crashes
+  if (contents.getType() === 'webview') {
+    contents.on('did-attach-webview', (event: any, webContents: any) => {
+      webContents.setFrameRate(30);
+    });
+  }
+
   contents.on("will-navigate", (event: any, navigationUrl: string) => {
     console.log("Navigating to:", navigationUrl);
   });
@@ -135,5 +145,10 @@ app.on("web-contents-created", (event: any, contents: any) => {
   contents.setWindowOpenHandler(({ url }: { url: string }) => {
     // Open links in new window or same webview
     return { action: "deny" };
+  });
+
+  // Handle render process crashes
+  contents.on('render-process-gone', (event: any, details: any) => {
+    console.error('Render process gone:', details);
   });
 });

@@ -64,40 +64,50 @@ function App() {
     const webview = webviewRef.current;
     if (!webview) return;
 
+    // Prevent concurrent executeJavaScript calls
+    if (isExecutingJavaScriptRef.current) return;
+
+    // Check if webview is still valid and not destroyed
     try {
-      webview
-        .executeJavaScript(
+      if (webview.getURL) {
+        isExecutingJavaScriptRef.current = true;
+        webview
+          .executeJavaScript(
+            `
+            (function() {
+              const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+              if (metaThemeColor) {
+                return metaThemeColor.getAttribute('content');
+              }
+              
+              const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+              return bodyBg;
+            })();
           `
-          (function() {
-            const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-            if (metaThemeColor) {
-              return metaThemeColor.getAttribute('content');
+          )
+          .then((themeColor: string) => {
+            isExecutingJavaScriptRef.current = false;
+            if (
+              themeColor &&
+              themeColor !== 'rgba(0, 0, 0, 0)' &&
+              themeColor !== 'transparent'
+            ) {
+              setThemeColor(themeColor);
+              const luminance = getLuminance(themeColor);
+              setTextColor(luminance > 0.5 ? '#000000' : '#ffffff');
+            } else {
+              setThemeColor('#000000');
+              setTextColor('#ffffff');
             }
-            
-            const bodyBg = window.getComputedStyle(document.body).backgroundColor;
-            return bodyBg;
-          })();
-        `
-        )
-        .then((themeColor: string) => {
-          if (
-            themeColor &&
-            themeColor !== 'rgba(0, 0, 0, 0)' &&
-            themeColor !== 'transparent'
-          ) {
-            setThemeColor(themeColor);
-            const luminance = getLuminance(themeColor);
-            setTextColor(luminance > 0.5 ? '#000000' : '#ffffff');
-          } else {
-            setThemeColor('#000000');
-            setTextColor('#ffffff');
-          }
-        })
-        .catch((err: Error) => {
-          console.error('Failed to get theme color:', err);
-        });
+          })
+          .catch(() => {
+            isExecutingJavaScriptRef.current = false;
+            // Silently ignore errors during page transitions
+          });
+      }
     } catch (err) {
-      console.error('Error updating theme color:', err);
+      isExecutingJavaScriptRef.current = false;
+      // Silently ignore errors when webview is being destroyed
     }
   };
 
@@ -109,14 +119,16 @@ function App() {
     try {
       const url = webview.getURL();
 
-      webview
-        .executeJavaScript('document.title')
-        .then((title: string) => {
-          setPageTitle(title || 'Untitled');
-        })
-        .catch(() => {
-          setPageTitle('Untitled');
-        });
+      if (webview.getURL) {
+        webview
+          .executeJavaScript('document.title')
+          .then((title: string) => {
+            setPageTitle(title || 'Untitled');
+          })
+          .catch(() => {
+            // Silently ignore errors during page transitions
+          });
+      }
 
       if (url) {
         try {
@@ -127,12 +139,24 @@ function App() {
         }
       }
     } catch (err) {
-      console.error('Error updating page info:', err);
+      // Silently ignore errors when webview is being destroyed
     }
   };
 
+  // Interval refs for cleanup
+  const themeMonitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isExecutingJavaScriptRef = useRef(false);
+  const crashCountRef = useRef(0);
+  const lastCrashTimeRef = useRef(0);
+
   // Start theme color monitoring
   const startThemeColorMonitoring = () => {
+    // Clear any existing intervals
+    if (themeMonitoringIntervalRef.current) {
+      clearInterval(themeMonitoringIntervalRef.current);
+      themeMonitoringIntervalRef.current = null;
+    }
+
     updateThemeColor();
 
     let pollCount = 0;
@@ -141,12 +165,21 @@ function App() {
       pollCount++;
       if (pollCount >= 20) {
         clearInterval(fastInterval);
-        const slowInterval = setInterval(updateThemeColor, 500);
-        return () => clearInterval(slowInterval);
+        // Switch to slower polling
+        themeMonitoringIntervalRef.current = setInterval(updateThemeColor, 500);
       }
     }, 50);
 
-    return () => clearInterval(fastInterval);
+    // Store the fast interval temporarily
+    themeMonitoringIntervalRef.current = fastInterval;
+  };
+
+  // Stop theme color monitoring
+  const stopThemeColorMonitoring = () => {
+    if (themeMonitoringIntervalRef.current) {
+      clearInterval(themeMonitoringIntervalRef.current);
+      themeMonitoringIntervalRef.current = null;
+    }
   };
 
   // Setup webview event listeners
@@ -161,6 +194,7 @@ function App() {
     };
 
     const handleDidNavigate = () => {
+      stopThemeColorMonitoring();
       startThemeColorMonitoring();
       updatePageInfo();
     };
@@ -172,6 +206,7 @@ function App() {
     };
 
     const handleDidStartLoading = () => {
+      stopThemeColorMonitoring();
       setThemeColor('#000000');
       setTextColor('#ffffff');
     };
@@ -180,18 +215,63 @@ function App() {
       startThemeColorMonitoring();
     };
 
+    const handleRenderProcessGone = (event: any) => {
+      console.error('Webview render process gone:', event.details);
+      stopThemeColorMonitoring();
+      
+      const now = Date.now();
+      // Reset crash count if last crash was more than 10 seconds ago
+      if (now - lastCrashTimeRef.current > 10000) {
+        crashCountRef.current = 0;
+      }
+      
+      crashCountRef.current++;
+      lastCrashTimeRef.current = now;
+      
+      setPageTitle(`Page Crashed (${crashCountRef.current})`);
+      setPageDomain('Please navigate to another page');
+      setThemeColor('#000000');
+      setTextColor('#ffffff');
+      
+      // Only auto-reload if crash count is less than 3
+      if (crashCountRef.current < 3) {
+        setTimeout(() => {
+          try {
+            if (webview && webview.reload) {
+              console.log('Attempting auto-reload after crash...');
+              webview.reload();
+            }
+          } catch (err) {
+            console.error('Failed to reload after crash:', err);
+          }
+        }, 2000);
+      } else {
+        console.error('Too many crashes, auto-reload disabled. Please navigate manually.');
+      }
+    };
+
+    const handleDidFailLoad = (event: any) => {
+      console.error('Webview failed to load:', event);
+      stopThemeColorMonitoring();
+    };
+
     webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('did-navigate', handleDidNavigate);
     webview.addEventListener('did-navigate-in-page', handleDidNavigateInPage);
     webview.addEventListener('did-start-loading', handleDidStartLoading);
     webview.addEventListener('did-stop-loading', handleDidStopLoading);
+    webview.addEventListener('render-process-gone', handleRenderProcessGone);
+    webview.addEventListener('did-fail-load', handleDidFailLoad);
 
     return () => {
+      stopThemeColorMonitoring();
       webview.removeEventListener('dom-ready', handleDomReady);
       webview.removeEventListener('did-navigate', handleDidNavigate);
       webview.removeEventListener('did-navigate-in-page', handleDidNavigateInPage);
       webview.removeEventListener('did-start-loading', handleDidStartLoading);
       webview.removeEventListener('did-stop-loading', handleDidStopLoading);
+      webview.removeEventListener('render-process-gone', handleRenderProcessGone);
+      webview.removeEventListener('did-fail-load', handleDidFailLoad);
     };
   }, []);
 
