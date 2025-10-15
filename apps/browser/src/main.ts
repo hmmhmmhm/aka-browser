@@ -200,6 +200,16 @@ function createTray(): void {
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
   app.setName("Aka Browser");
+  
+  // Set dock icon for macOS
+  if (process.platform === "darwin") {
+    const iconPath = path.join(__dirname, "../assets/icon.png");
+    const dockIcon = nativeImage.createFromPath(iconPath);
+    if (!dockIcon.isEmpty()) {
+      app.dock?.setIcon(dockIcon);
+    }
+  }
+  
   createWindow();
   createTray();
 
