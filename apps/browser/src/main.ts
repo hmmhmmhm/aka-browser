@@ -9,6 +9,9 @@ const IPHONE_HEIGHT = 852;
 const FRAME_PADDING = 28; // 14px border on each side
 const TOP_BAR_HEIGHT = 52;
 
+// iPhone 15 Pro User Agent
+const IPHONE_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
 function createWindow(): void {
   // Create the browser window with iPhone frame
   mainWindow = new BrowserWindow({
@@ -85,6 +88,9 @@ app.on('window-all-closed', () => {
 
 // Handle navigation
 app.on('web-contents-created', (event: any, contents: any) => {
+  // Set iPhone User Agent for all web contents (including webviews)
+  contents.setUserAgent(IPHONE_USER_AGENT);
+  
   contents.on('will-navigate', (event: any, navigationUrl: string) => {
     console.log('Navigating to:', navigationUrl);
   });
