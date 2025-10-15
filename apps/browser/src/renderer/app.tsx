@@ -144,7 +144,7 @@ function App() {
   };
 
   // Interval refs for cleanup
-  const themeMonitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const themeMonitoringIntervalRef = useRef<number | null>(null);
   const isExecutingJavaScriptRef = useRef(false);
   const crashCountRef = useRef(0);
   const lastCrashTimeRef = useRef(0);
