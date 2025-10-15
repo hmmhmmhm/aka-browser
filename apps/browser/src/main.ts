@@ -105,6 +105,7 @@ ipcMain.on("window-maximize", () => {
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
+  app.setName("Aka Browser");
   createWindow();
 
   app.on("activate", () => {
