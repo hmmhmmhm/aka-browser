@@ -4,6 +4,7 @@ import path from "path";
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isAlwaysOnTop = false;
+let webviewWebContents: any = null; // Store reference to webview's WebContents
 
 // iPhone 15 Pro dimensions
 const IPHONE_WIDTH = 393;
@@ -115,6 +116,13 @@ ipcMain.on("window-close", () => {
   }
 });
 
+// IPC handler for opening webview DevTools
+ipcMain.on("open-webview-devtools", () => {
+  if (webviewWebContents && !webviewWebContents.isDestroyed()) {
+    webviewWebContents.openDevTools();
+  }
+});
+
 ipcMain.on("window-minimize", () => {
   if (mainWindow) {
     mainWindow.minimize();
@@ -187,6 +195,17 @@ function createTray(): void {
         type: "separator",
       },
       {
+        label: "Open DevTools",
+        click: () => {
+          if (webviewWebContents && !webviewWebContents.isDestroyed()) {
+            webviewWebContents.openDevTools();
+          }
+        },
+      },
+      {
+        type: "separator",
+      },
+      {
         label: "Quit",
         click: () => {
           app.quit();
@@ -238,6 +257,16 @@ app.whenReady().then(() => {
     return true; // Prevent default behavior
   });
 
+  // Register Cmd+Shift+I / Ctrl+Shift+I (DevTools) - only in development mode
+  if (process.env.NODE_ENV === 'development') {
+    globalShortcut.register('CommandOrControl+Shift+I', () => {
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.toggleDevTools();
+      }
+      return true; // Prevent default behavior
+    });
+  }
+
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -275,6 +304,9 @@ app.on("web-contents-created", (event: any, contents: any) => {
 
   // Enable context menu (right-click) for webviews
   if (contents.getType() === 'webview') {
+    // Store reference to webview WebContents for DevTools access
+    webviewWebContents = contents;
+    
     contents.on('context-menu', (event: any, params: any) => {
       const menu = Menu.buildFromTemplate([
         { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
