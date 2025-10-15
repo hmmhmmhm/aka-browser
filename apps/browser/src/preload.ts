@@ -17,4 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('navigate-forward', callback);
     return () => ipcRenderer.removeListener('navigate-forward', callback);
   },
+  // Webview reload listener
+  onWebviewReload: (callback: () => void) => {
+    ipcRenderer.on('webview-reload', callback);
+    return () => ipcRenderer.removeListener('webview-reload', callback);
+  },
 });

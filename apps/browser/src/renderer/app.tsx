@@ -182,6 +182,23 @@ function App() {
     }
   };
 
+  // Setup webview reload listener for Cmd+R shortcut
+  useEffect(() => {
+    const handleWebviewReload = () => {
+      const webview = webviewRef.current;
+      if (webview) {
+        webview.reload();
+      }
+    };
+
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanup = window.electronAPI?.onWebviewReload(handleWebviewReload);
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
   // Setup gesture navigation listeners using wheel events
   useEffect(() => {
     const webview = webviewRef.current;

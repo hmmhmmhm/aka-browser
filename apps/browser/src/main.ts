@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage, globalShortcut } from "electron";
 import path from "path";
 
 let mainWindow: BrowserWindow | null = null;
@@ -213,6 +213,31 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
+  // Register global shortcuts to prevent default refresh behavior
+  // Cmd+R (macOS) / Ctrl+R (Windows/Linux)
+  globalShortcut.register('CommandOrControl+R', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('webview-reload');
+    }
+    return true; // Prevent default behavior
+  });
+
+  // Also handle F5 key
+  globalShortcut.register('F5', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('webview-reload');
+    }
+    return true; // Prevent default behavior
+  });
+
+  // Handle Cmd+Shift+R / Ctrl+Shift+R (hard reload)
+  globalShortcut.register('CommandOrControl+Shift+R', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('webview-reload');
+    }
+    return true; // Prevent default behavior
+  });
+
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -236,6 +261,11 @@ app.on("before-quit", () => {
     tray.destroy();
     tray = null;
   }
+});
+
+// Unregister all shortcuts when app quits
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 
 // Handle navigation
