@@ -8,7 +8,11 @@ declare global {
   }
 }
 
-function WindowControls() {
+interface WindowControlsProps {
+  theme: 'light' | 'dark';
+}
+
+function WindowControls({ theme }: WindowControlsProps) {
   const handleClose = () => {
     window.electronAPI?.closeWindow();
   };

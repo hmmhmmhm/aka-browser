@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, nativeTheme } from 'electron';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -21,5 +21,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onWebviewReload: (callback: () => void) => {
     ipcRenderer.on('webview-reload', callback);
     return () => ipcRenderer.removeListener('webview-reload', callback);
+  },
+  // Theme detection
+  getSystemTheme: () => ipcRenderer.invoke('get-system-theme'),
+  onThemeChanged: (callback: (theme: 'light' | 'dark') => void) => {
+    ipcRenderer.on('theme-changed', (_event, theme) => callback(theme));
+    return () => ipcRenderer.removeAllListeners('theme-changed');
   },
 });

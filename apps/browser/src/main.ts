@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage, globalShortcut } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage, globalShortcut, nativeTheme } from "electron";
 import path from "path";
 
 let mainWindow: BrowserWindow | null = null;
@@ -136,6 +136,19 @@ ipcMain.on("window-maximize", () => {
     } else {
       mainWindow.maximize();
     }
+  }
+});
+
+// IPC handler for getting system theme
+ipcMain.handle("get-system-theme", () => {
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+});
+
+// Listen for system theme changes and notify renderer
+nativeTheme.on('updated', () => {
+  const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('theme-changed', theme);
   }
 });
 

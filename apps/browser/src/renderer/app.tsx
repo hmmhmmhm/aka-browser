@@ -8,7 +8,27 @@ function App() {
   const [pageDomain, setPageDomain] = useState('www.google.com');
   const [themeColor, setThemeColor] = useState('#000000');
   const [textColor, setTextColor] = useState('#ffffff');
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('dark');
   const webviewRef = useRef<any>(null);
+
+  // Initialize and listen for system theme changes
+  useEffect(() => {
+    // Get initial theme
+    // @ts-ignore - electronAPI is exposed via preload
+    window.electronAPI?.getSystemTheme().then((theme: 'light' | 'dark') => {
+      setSystemTheme(theme);
+    });
+
+    // Listen for theme changes
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanup = window.electronAPI?.onThemeChanged((theme: 'light' | 'dark') => {
+      setSystemTheme(theme);
+    });
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
 
   // Update time
   useEffect(() => {
@@ -449,6 +469,7 @@ function App() {
         onBack={handleBack}
         onForward={handleForward}
         onRefresh={handleRefresh}
+        theme={systemTheme}
       />
       <PhoneFrame
         webviewRef={webviewRef}

@@ -10,6 +10,7 @@ interface TopBarProps {
   onBack: () => void;
   onForward: () => void;
   onRefresh: () => void;
+  theme: 'light' | 'dark';
 }
 
 function TopBar({
@@ -20,6 +21,7 @@ function TopBar({
   onBack,
   onForward,
   onRefresh,
+  theme,
 }: TopBarProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -44,15 +46,29 @@ function TopBar({
     setTimeout(() => setIsEditing(false), 100);
   };
 
+  const isDark = theme === 'dark';
+  
   return (
-    <div className="h-[52px] flex items-center justify-start px-5 mx-2 my-2 mb-3 bg-[rgba(40,40,40,0.95)] backdrop-blur-[40px] backdrop-saturate-[180%] rounded-xl [-webkit-app-region:drag] gap-3">
-      <WindowControls />
+    <div className={`h-[52px] flex items-center justify-start px-5 mx-2 my-2 mb-3 backdrop-blur-[40px] backdrop-saturate-[180%] rounded-xl [-webkit-app-region:drag] gap-3 transition-colors duration-200 ${
+      isDark 
+        ? 'bg-[rgba(40,40,40,0.95)]' 
+        : 'bg-[rgba(255,255,255,0.85)]'
+    }`}>
+      <WindowControls theme={theme} />
 
       <div
-        className={`text-[13px] font-medium tracking-[0.3px] text-[rgba(255,255,255,0.85)] flex flex-col gap-0.5 flex-1 min-w-0 overflow-hidden cursor-pointer [-webkit-app-region:no-drag] px-2 py-1 rounded-md transition-colors duration-150 ${
+        className={`text-[13px] font-medium tracking-[0.3px] flex flex-col gap-0.5 flex-1 min-w-0 overflow-hidden cursor-pointer [-webkit-app-region:no-drag] px-2 py-1 rounded-md transition-colors duration-150 ${
+          isDark
+            ? 'text-[rgba(255,255,255,0.85)]'
+            : 'text-[rgba(0,0,0,0.85)]'
+        } ${
           isEditing
-            ? "bg-[rgba(255,255,255,0.1)] cursor-text"
-            : "hover:bg-[rgba(255,255,255,0.05)]"
+            ? isDark
+              ? "bg-[rgba(255,255,255,0.1)] cursor-text"
+              : "bg-[rgba(0,0,0,0.06)] cursor-text"
+            : isDark
+              ? "hover:bg-[rgba(255,255,255,0.05)]"
+              : "hover:bg-[rgba(0,0,0,0.04)]"
         }`}
         onClick={!isEditing ? handleTitleClick : undefined}
       >
@@ -64,7 +80,11 @@ function TopBar({
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             autoFocus
-            className="w-full bg-transparent border-none outline-none text-[rgba(255,255,255,0.85)] text-[13px] font-medium font-[inherit] p-0 m-0 placeholder:text-[rgba(255,255,255,0.4)]"
+            className={`w-full bg-transparent border-none outline-none text-[13px] font-medium font-[inherit] p-0 m-0 ${
+              isDark
+                ? 'text-[rgba(255,255,255,0.85)] placeholder:text-[rgba(255,255,255,0.4)]'
+                : 'text-[rgba(0,0,0,0.85)] placeholder:text-[rgba(0,0,0,0.4)]'
+            }`}
             placeholder="Enter URL..."
           />
         ) : (
@@ -72,7 +92,9 @@ function TopBar({
             <div className="text-[13px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
               {pageTitle}
             </div>
-            <div className="text-[11px] text-[rgba(255,255,255,0.5)] font-normal whitespace-nowrap overflow-hidden text-ellipsis">
+            <div className={`text-[11px] font-normal whitespace-nowrap overflow-hidden text-ellipsis ${
+              isDark ? 'text-[rgba(255,255,255,0.5)]' : 'text-[rgba(0,0,0,0.5)]'
+            }`}>
               {pageDomain}
             </div>
           </>
@@ -83,6 +105,7 @@ function TopBar({
         onBack={onBack}
         onForward={onForward}
         onRefresh={onRefresh}
+        theme={theme}
       />
     </div>
   );
