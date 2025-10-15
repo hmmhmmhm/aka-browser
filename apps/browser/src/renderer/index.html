@@ -539,16 +539,17 @@
         if (themeColorInterval) {
           clearInterval(themeColorInterval);
         }
-        
+
         // Immediate update
         updateThemeColor();
-        
+
         // Fast polling for first 2 seconds
         let pollCount = 0;
         const fastInterval = setInterval(() => {
           updateThemeColor();
           pollCount++;
-          if (pollCount >= 20) { // 20 * 50ms = 1 second
+          if (pollCount >= 20) {
+            // 20 * 50ms = 1 second
             clearInterval(fastInterval);
             // Switch to slower polling
             themeColorInterval = setInterval(updateThemeColor, 500);
