@@ -531,37 +531,62 @@
         }
       }
 
+      // Continuous theme color monitoring with faster polling
+      let themeColorInterval = null;
+
+      function startThemeColorMonitoring() {
+        // Clear existing interval
+        if (themeColorInterval) {
+          clearInterval(themeColorInterval);
+        }
+        
+        // Immediate update
+        updateThemeColor();
+        
+        // Fast polling for first 2 seconds
+        let pollCount = 0;
+        const fastInterval = setInterval(() => {
+          updateThemeColor();
+          pollCount++;
+          if (pollCount >= 20) { // 20 * 50ms = 1 second
+            clearInterval(fastInterval);
+            // Switch to slower polling
+            themeColorInterval = setInterval(updateThemeColor, 500);
+          }
+        }, 50);
+      }
+
+      function stopThemeColorMonitoring() {
+        if (themeColorInterval) {
+          clearInterval(themeColorInterval);
+          themeColorInterval = null;
+        }
+      }
+
       // Update theme color when page loads
       webview.addEventListener("dom-ready", () => {
         console.log("Webview DOM ready");
-        updateThemeColor();
-        // Poll for changes in case meta tag is added dynamically
-        setTimeout(updateThemeColor, 100);
-        setTimeout(updateThemeColor, 300);
-        setTimeout(updateThemeColor, 600);
+        startThemeColorMonitoring();
       });
 
       webview.addEventListener("did-navigate", () => {
-        updateThemeColor();
-        setTimeout(updateThemeColor, 100);
-        setTimeout(updateThemeColor, 300);
+        startThemeColorMonitoring();
       });
 
       webview.addEventListener("did-navigate-in-page", () => {
         updateThemeColor();
-        setTimeout(updateThemeColor, 100);
+        setTimeout(updateThemeColor, 50);
       });
 
       webview.addEventListener("did-start-loading", () => {
         // Reset to default while loading
         document.documentElement.style.setProperty("--theme-color", "#000000");
         document.documentElement.style.setProperty("--text-color", "#ffffff");
+        stopThemeColorMonitoring();
       });
 
       webview.addEventListener("did-stop-loading", () => {
-        updateThemeColor();
-        setTimeout(updateThemeColor, 100);
-        setTimeout(updateThemeColor, 300);
+        startThemeColorMonitoring();
       });
     </script>
   </body>
