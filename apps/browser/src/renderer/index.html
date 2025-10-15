@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>aka-browser</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: #ffffff;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    .top-bar {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .app-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      -webkit-app-region: no-drag;
+    }
+
+    .control-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .control-btn:active {
+      transform: translateY(0);
+    }
+
+    .phone-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 40px;
+      background: transparent;
+      border: 14px solid #1a1a1a;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    .notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 30px;
+      background: #000000;
+      border-radius: 0 0 20px 20px;
+      z-index: 10;
+    }
+
+    .status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 44px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 12px;
+      color: #ffffff;
+      z-index: 5;
+    }
+
+    .time {
+      font-weight: 600;
+    }
+
+    .indicators {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .phone-container {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      width: 393px;
+      height: 852px;
+      z-index: 10;
+    }
+
+    .webview-wrapper {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      width: calc(100% - 28px);
+      height: calc(100% - 28px);
+      border-radius: 27px;
+      overflow: hidden;
+      z-index: 1;
+      background: #1a1a1a;
+    }
+
+    webview {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="app-title">aka-browser</div>
+    <div class="controls">
+      <button class="control-btn" id="back-btn" title="Back">←</button>
+      <button class="control-btn" id="forward-btn" title="Forward">→</button>
+      <button class="control-btn" id="refresh-btn" title="Refresh">↻</button>
+    </div>
+  </div>
+
+  <div class="phone-container">
+    <div class="webview-wrapper">
+      <webview id="webview" src="https://www.google.com" partition="persist:main"></webview>
+    </div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="status-bar">
+        <div class="time" id="time">9:41</div>
+        <div class="indicators">
+          <span>📶</span>
+          <span>📡</span>
+          <span>🔋</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Update time
+    function updateTime() {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('time').textContent = `${hours}:${minutes}`;
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+
+    // Navigation controls
+    const webview = document.getElementById('webview');
+    const backBtn = document.getElementById('back-btn');
+    const forwardBtn = document.getElementById('forward-btn');
+    const refreshBtn = document.getElementById('refresh-btn');
+
+    console.log('Webview element:', webview);
+
+    webview.addEventListener('did-start-loading', () => {
+      console.log('Webview started loading');
+    });
+
+    webview.addEventListener('did-stop-loading', () => {
+      console.log('Webview stopped loading');
+    });
+
+    webview.addEventListener('dom-ready', () => {
+      console.log('Webview DOM ready');
+    });
+
+    webview.addEventListener('did-fail-load', (event) => {
+      console.error('Webview failed to load:', event);
+    });
+
+    backBtn.addEventListener('click', () => {
+      if (webview.canGoBack()) {
+        webview.goBack();
+      }
+    });
+
+    forwardBtn.addEventListener('click', () => {
+      if (webview.canGoForward()) {
+        webview.goForward();
+      }
+    });
+
+    refreshBtn.addEventListener('click', () => {
+      webview.reload();
+    });
+  </script>
+</body>
+</html>

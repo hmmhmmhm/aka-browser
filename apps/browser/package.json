@@ -1,0 +1,43 @@
+{
+  "name": "@aka-browser/browser",
+  "version": "0.1.0",
+  "description": "A lightweight, elegant web browser for developers featuring an iPhone frame interface",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run build:watch\" \"npm run start:electron\"",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start:electron": "electron .",
+    "package": "electron-builder",
+    "check-types": "tsc --noEmit"
+  },
+  "keywords": [
+    "electron",
+    "browser",
+    "developer-tools"
+  ],
+  "author": "hmmhmmhm",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "5.9.2"
+  },
+  "build": {
+    "appId": "com.aka-browser.app",
+    "productName": "aka-browser",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/renderer/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
+    }
+  }
+}
