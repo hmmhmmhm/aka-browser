@@ -1,6 +1,46 @@
 import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage, globalShortcut, nativeTheme, WebContentsView } from "electron";
 import path from "path";
 
+// URL validation and security
+const ALLOWED_PROTOCOLS = ['http:', 'https:'];
+const BLOCKED_DOMAINS: string[] = [
+  // Add known malicious domains here
+];
+
+function isValidUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    
+    // Only allow http and https protocols
+    if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
+      console.warn(`Blocked URL with invalid protocol: ${url.protocol}`);
+      return false;
+    }
+    
+    // Check against blocked domains
+    if (BLOCKED_DOMAINS.some(domain => url.hostname.includes(domain))) {
+      console.warn(`Blocked URL with suspicious domain: ${url.hostname}`);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.warn(`Invalid URL format: ${urlString}`);
+    return false;
+  }
+}
+
+function sanitizeUrl(urlString: string): string {
+  let url = urlString.trim();
+  
+  // If no protocol, add https://
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  
+  return url;
+}
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isAlwaysOnTop = false;
@@ -23,8 +63,8 @@ function setupWebContentsViewHandlers(view: WebContentsView) {
   // Enable context menu (right-click)
   contents.on('context-menu', (event: any, params: any) => {
     const menu = Menu.buildFromTemplate([
-      { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
-      { label: 'Forward', enabled: contents.canGoForward(), click: () => contents.goForward() },
+      { label: 'Back', enabled: contents.navigationHistory.canGoBack(), click: () => contents.navigationHistory.goBack() },
+      { label: 'Forward', enabled: contents.navigationHistory.canGoForward(), click: () => contents.navigationHistory.goForward() },
       { label: 'Reload', click: () => contents.reload() },
       { type: 'separator' },
       { label: 'Copy', role: 'copy' },
@@ -44,7 +84,15 @@ function setupWebContentsViewHandlers(view: WebContentsView) {
   });
 
   contents.on("will-navigate", (event: any, navigationUrl: string) => {
-    // Navigation event - can add custom logic here
+    // Validate navigation URL
+    if (!isValidUrl(navigationUrl)) {
+      event.preventDefault();
+      console.error(`Navigation blocked to invalid URL: ${navigationUrl}`);
+      // Optionally notify the user
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('navigation-blocked', navigationUrl);
+      }
+    }
   });
 
   contents.setWindowOpenHandler(({ url }: { url: string }) => {
@@ -134,6 +182,8 @@ function createWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: true, // Explicitly enable web security
+      allowRunningInsecureContent: false, // Block mixed content
       partition: "persist:main",
     },
   });
@@ -153,6 +203,18 @@ function createWindow(): void {
 
   // Setup event handlers for WebContentsView
   setupWebContentsViewHandlers(webContentsView);
+
+  // Set Content Security Policy for the main window
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:* ws://localhost:*; font-src 'self' data:;"
+        ]
+      }
+    });
+  });
 
   // Load the main UI
   if (process.env.NODE_ENV === "development") {
@@ -250,19 +312,25 @@ nativeTheme.on('updated', () => {
 // IPC handlers for WebContentsView control
 ipcMain.handle("webcontents-load-url", (event, url: string) => {
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
-    webContentsView.webContents.loadURL(url);
+    const sanitized = sanitizeUrl(url);
+    if (isValidUrl(sanitized)) {
+      webContentsView.webContents.loadURL(sanitized);
+    } else {
+      console.error(`Rejected invalid URL: ${url}`);
+      throw new Error(`Invalid URL: ${url}`);
+    }
   }
 });
 
 ipcMain.handle("webcontents-go-back", () => {
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
-    webContentsView.webContents.goBack();
+    webContentsView.webContents.navigationHistory.goBack();
   }
 });
 
 ipcMain.handle("webcontents-go-forward", () => {
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
-    webContentsView.webContents.goForward();
+    webContentsView.webContents.navigationHistory.goForward();
   }
 });
 
@@ -274,14 +342,14 @@ ipcMain.handle("webcontents-reload", () => {
 
 ipcMain.handle("webcontents-can-go-back", () => {
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
-    return webContentsView.webContents.canGoBack();
+    return webContentsView.webContents.navigationHistory.canGoBack();
   }
   return false;
 });
 
 ipcMain.handle("webcontents-can-go-forward", () => {
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
-    return webContentsView.webContents.canGoForward();
+    return webContentsView.webContents.navigationHistory.canGoForward();
   }
   return false;
 });
@@ -300,11 +368,29 @@ ipcMain.handle("webcontents-get-title", () => {
   return "";
 });
 
-ipcMain.handle("webcontents-execute-javascript", (event, code: string) => {
+// Removed executeJavaScript handler for security reasons
+// Use specific, safe APIs instead
+
+ipcMain.handle("webcontents-get-theme-color", async () => {
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
-    return webContentsView.webContents.executeJavaScript(code);
+    try {
+      // Safe, predefined script to get theme color
+      const themeColor = await webContentsView.webContents.executeJavaScript(`
+        (function() {
+          const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+          if (metaThemeColor) {
+            return metaThemeColor.getAttribute('content');
+          }
+          const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+          return bodyBg;
+        })();
+      `);
+      return themeColor;
+    } catch (error) {
+      return null;
+    }
   }
-  return Promise.reject("WebContentsView not available");
+  return null;
 });
 
 ipcMain.handle("webcontents-set-bounds", (event, bounds: { x: number, y: number, width: number, height: number }) => {

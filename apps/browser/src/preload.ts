@@ -39,7 +39,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     canGoForward: () => ipcRenderer.invoke('webcontents-can-go-forward'),
     getURL: () => ipcRenderer.invoke('webcontents-get-url'),
     getTitle: () => ipcRenderer.invoke('webcontents-get-title'),
-    executeJavaScript: (code: string) => ipcRenderer.invoke('webcontents-execute-javascript', code),
+    // Removed executeJavaScript for security - use specific APIs instead
+    getThemeColor: () => ipcRenderer.invoke('webcontents-get-theme-color'),
     setBounds: (bounds: { x: number, y: number, width: number, height: number }) => 
       ipcRenderer.invoke('webcontents-set-bounds', bounds),
     

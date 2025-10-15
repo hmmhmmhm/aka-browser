@@ -82,25 +82,13 @@ function App() {
 
   // Update theme color
   const updateThemeColor = async () => {
-    // Prevent concurrent executeJavaScript calls
+    // Prevent concurrent API calls
     if (isExecutingJavaScriptRef.current) return;
 
     try {
       isExecutingJavaScriptRef.current = true;
       // @ts-ignore - electronAPI is exposed via preload
-      const themeColor = await window.electronAPI?.webContents.executeJavaScript(
-        `
-        (function() {
-          const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-          if (metaThemeColor) {
-            return metaThemeColor.getAttribute('content');
-          }
-          
-          const bodyBg = window.getComputedStyle(document.body).backgroundColor;
-          return bodyBg;
-        })();
-      `
-      );
+      const themeColor = await window.electronAPI?.webContents.getThemeColor();
       
       isExecutingJavaScriptRef.current = false;
       if (
