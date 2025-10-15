@@ -6,10 +6,11 @@ function App() {
   const [time, setTime] = useState('9:41');
   const [pageTitle, setPageTitle] = useState('Loading...');
   const [pageDomain, setPageDomain] = useState('www.google.com');
-  const [themeColor, setThemeColor] = useState('#000000');
-  const [textColor, setTextColor] = useState('#ffffff');
+  const [themeColor, setThemeColor] = useState('#ffffff');
+  const [textColor, setTextColor] = useState('#000000');
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('dark');
-  const webviewRef = useRef<any>(null);
+  const [currentUrl, setCurrentUrl] = useState('https://www.google.com');
+  const webContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize and listen for system theme changes
   useEffect(() => {
@@ -80,75 +81,57 @@ function App() {
   };
 
   // Update theme color
-  const updateThemeColor = () => {
-    const webview = webviewRef.current;
-    if (!webview) return;
-
+  const updateThemeColor = async () => {
     // Prevent concurrent executeJavaScript calls
     if (isExecutingJavaScriptRef.current) return;
 
-    // Check if webview is still valid and not destroyed
     try {
-      if (webview.getURL) {
-        isExecutingJavaScriptRef.current = true;
-        webview
-          .executeJavaScript(
-            `
-            (function() {
-              const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-              if (metaThemeColor) {
-                return metaThemeColor.getAttribute('content');
-              }
-              
-              const bodyBg = window.getComputedStyle(document.body).backgroundColor;
-              return bodyBg;
-            })();
-          `
-          )
-          .then((themeColor: string) => {
-            isExecutingJavaScriptRef.current = false;
-            if (
-              themeColor &&
-              themeColor !== 'rgba(0, 0, 0, 0)' &&
-              themeColor !== 'transparent'
-            ) {
-              setThemeColor(themeColor);
-              const luminance = getLuminance(themeColor);
-              setTextColor(luminance > 0.5 ? '#000000' : '#ffffff');
-            } else {
-              setThemeColor('#000000');
-              setTextColor('#ffffff');
-            }
-          })
-          .catch(() => {
-            isExecutingJavaScriptRef.current = false;
-            // Silently ignore errors during page transitions
-          });
+      isExecutingJavaScriptRef.current = true;
+      // @ts-ignore - electronAPI is exposed via preload
+      const themeColor = await window.electronAPI?.webContents.executeJavaScript(
+        `
+        (function() {
+          const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+          if (metaThemeColor) {
+            return metaThemeColor.getAttribute('content');
+          }
+          
+          const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+          return bodyBg;
+        })();
+      `
+      );
+      
+      isExecutingJavaScriptRef.current = false;
+      if (
+        themeColor &&
+        themeColor !== 'rgba(0, 0, 0, 0)' &&
+        themeColor !== 'transparent'
+      ) {
+        setThemeColor(themeColor);
+        const luminance = getLuminance(themeColor);
+        setTextColor(luminance > 0.5 ? '#000000' : '#ffffff');
+      } else {
+        // Default to white background with black text when no theme color is found
+        setThemeColor('#ffffff');
+        setTextColor('#000000');
       }
     } catch (err) {
       isExecutingJavaScriptRef.current = false;
-      // Silently ignore errors when webview is being destroyed
+      // Silently ignore errors during page transitions
     }
   };
 
   // Update page info
-  const updatePageInfo = () => {
-    const webview = webviewRef.current;
-    if (!webview) return;
-
+  const updatePageInfo = async () => {
     try {
-      const url = webview.getURL();
+      // @ts-ignore - electronAPI is exposed via preload
+      const url = await window.electronAPI?.webContents.getURL();
+      // @ts-ignore - electronAPI is exposed via preload
+      const title = await window.electronAPI?.webContents.getTitle();
 
-      if (webview.getURL) {
-        webview
-          .executeJavaScript('document.title')
-          .then((title: string) => {
-            setPageTitle(title || 'Untitled');
-          })
-          .catch(() => {
-            // Silently ignore errors during page transitions
-          });
-      }
+      setPageTitle(title || 'Untitled');
+      setCurrentUrl(url || 'https://www.google.com');
 
       if (url) {
         try {
@@ -159,7 +142,7 @@ function App() {
         }
       }
     } catch (err) {
-      // Silently ignore errors when webview is being destroyed
+      // Silently ignore errors during page transitions
     }
   };
 
@@ -205,10 +188,8 @@ function App() {
   // Setup webview reload listener for Cmd+R shortcut
   useEffect(() => {
     const handleWebviewReload = () => {
-      const webview = webviewRef.current;
-      if (webview) {
-        webview.reload();
-      }
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.webContents.reload();
     };
 
     // @ts-ignore - electronAPI is exposed via preload
@@ -221,130 +202,60 @@ function App() {
 
   // Setup gesture navigation listeners using wheel events
   useEffect(() => {
-    const webview = webviewRef.current;
-    if (!webview) return;
-
     let accumulatedDeltaX = 0;
     let isNavigating = false;
-    const SWIPE_THRESHOLD = 100; // Threshold for triggering navigation
-    const RESET_TIMEOUT = 300; // Reset accumulated delta after this timeout
+    const SWIPE_THRESHOLD = 100;
+    const RESET_TIMEOUT = 300;
     let resetTimer: number | null = null;
 
-    const handleWheel = (e: WheelEvent) => {
-      // Only handle horizontal swipes (two-finger left/right swipe on trackpad)
-      // Ignore if there's significant vertical scrolling
+    const handleWheel = async (e: WheelEvent) => {
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
         return;
       }
 
-      // Accumulate horizontal delta
       accumulatedDeltaX += e.deltaX;
 
-      // Clear previous reset timer
       if (resetTimer) {
         clearTimeout(resetTimer);
       }
 
-      // Set new reset timer
       resetTimer = window.setTimeout(() => {
         accumulatedDeltaX = 0;
         isNavigating = false;
       }, RESET_TIMEOUT);
 
-      // Check if we've crossed the threshold and not already navigating
       if (!isNavigating) {
-        if (accumulatedDeltaX < -SWIPE_THRESHOLD && webview.canGoBack()) {
-          // Swipe right (negative deltaX) = go back
-          webview.goBack();
+        // @ts-ignore - electronAPI is exposed via preload
+        const canGoBack = await window.electronAPI?.webContents.canGoBack();
+        // @ts-ignore - electronAPI is exposed via preload
+        const canGoForward = await window.electronAPI?.webContents.canGoForward();
+
+        if (accumulatedDeltaX < -SWIPE_THRESHOLD && canGoBack) {
+          // @ts-ignore - electronAPI is exposed via preload
+          window.electronAPI?.webContents.goBack();
           isNavigating = true;
           accumulatedDeltaX = 0;
-        } else if (accumulatedDeltaX > SWIPE_THRESHOLD && webview.canGoForward()) {
-          // Swipe left (positive deltaX) = go forward
-          webview.goForward();
+        } else if (accumulatedDeltaX > SWIPE_THRESHOLD && canGoForward) {
+          // @ts-ignore - electronAPI is exposed via preload
+          window.electronAPI?.webContents.goForward();
           isNavigating = true;
           accumulatedDeltaX = 0;
         }
       }
     };
 
-    // Add wheel event listener to window
     window.addEventListener('wheel', handleWheel, { passive: true });
-
-    // Inject script into webview to capture wheel events and forward them
-    const injectGestureScript = () => {
-      if (!webview || !webview.executeJavaScript) return;
-      
-      webview.executeJavaScript(`
-        (function() {
-          if (window.__gestureListenerInjected) return;
-          window.__gestureListenerInjected = true;
-          
-          let accumulatedDeltaX = 0;
-          let isNavigating = false;
-          const SWIPE_THRESHOLD = 100;
-          const RESET_TIMEOUT = 300;
-          let resetTimer = null;
-          
-          window.addEventListener('wheel', (e) => {
-            // Only handle horizontal swipes
-            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-              return;
-            }
-            
-            accumulatedDeltaX += e.deltaX;
-            
-            if (resetTimer) clearTimeout(resetTimer);
-            
-            resetTimer = setTimeout(() => {
-              accumulatedDeltaX = 0;
-              isNavigating = false;
-            }, RESET_TIMEOUT);
-            
-            if (!isNavigating) {
-              if (accumulatedDeltaX < -SWIPE_THRESHOLD) {
-                window.history.back();
-                isNavigating = true;
-                accumulatedDeltaX = 0;
-              } else if (accumulatedDeltaX > SWIPE_THRESHOLD) {
-                window.history.forward();
-                isNavigating = true;
-                accumulatedDeltaX = 0;
-              }
-            }
-          }, { passive: true });
-        })();
-      `).catch(() => {
-        // Ignore errors during injection
-      });
-    };
-
-    // Inject script when webview is ready
-    const handleDomReadyForGesture = () => {
-      injectGestureScript();
-    };
-
-    webview.addEventListener('dom-ready', handleDomReadyForGesture);
-    webview.addEventListener('did-navigate', injectGestureScript);
-    webview.addEventListener('did-navigate-in-page', injectGestureScript);
 
     return () => {
       window.removeEventListener('wheel', handleWheel);
-      if (webview) {
-        webview.removeEventListener('dom-ready', handleDomReadyForGesture);
-        webview.removeEventListener('did-navigate', injectGestureScript);
-        webview.removeEventListener('did-navigate-in-page', injectGestureScript);
-      }
       if (resetTimer) {
         clearTimeout(resetTimer);
       }
     };
   }, []);
 
-  // Setup webview event listeners
+  // Setup WebContents event listeners via IPC
   useEffect(() => {
-    const webview = webviewRef.current;
-    if (!webview) return;
-
     const handleDomReady = () => {
       updatePageInfo();
       startThemeColorMonitoring();
@@ -364,19 +275,18 @@ function App() {
 
     const handleDidStartLoading = () => {
       stopThemeColorMonitoring();
-      setThemeColor('#000000');
-      setTextColor('#ffffff');
+      setThemeColor('#ffffff');
+      setTextColor('#000000');
     };
 
     const handleDidStopLoading = () => {
       startThemeColorMonitoring();
     };
 
-    const handleRenderProcessGone = (event: any) => {
+    const handleRenderProcessGone = (details: any) => {
       stopThemeColorMonitoring();
       
       const now = Date.now();
-      // Reset crash count if last crash was more than 10 seconds ago
       if (now - lastCrashTimeRef.current > 10000) {
         crashCountRef.current = 0;
       }
@@ -386,77 +296,84 @@ function App() {
       
       setPageTitle(`Page Crashed (${crashCountRef.current})`);
       setPageDomain('Please navigate to another page');
-      setThemeColor('#000000');
-      setTextColor('#ffffff');
+      setThemeColor('#ffffff');
+      setTextColor('#000000');
       
-      // Only auto-reload if crash count is less than 3
       if (crashCountRef.current < 3) {
         setTimeout(() => {
-          try {
-            if (webview && webview.reload) {
-              webview.reload();
-            }
-          } catch (err) {
-            // Failed to reload after crash
-          }
+          // @ts-ignore - electronAPI is exposed via preload
+          window.electronAPI?.webContents.reload();
         }, 2000);
       }
     };
 
-    const handleDidFailLoad = (event: any) => {
+    const handleDidFailLoad = () => {
       stopThemeColorMonitoring();
     };
 
-    webview.addEventListener('dom-ready', handleDomReady);
-    webview.addEventListener('did-navigate', handleDidNavigate);
-    webview.addEventListener('did-navigate-in-page', handleDidNavigateInPage);
-    webview.addEventListener('did-start-loading', handleDidStartLoading);
-    webview.addEventListener('did-stop-loading', handleDidStopLoading);
-    webview.addEventListener('render-process-gone', handleRenderProcessGone);
-    webview.addEventListener('did-fail-load', handleDidFailLoad);
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupDomReady = window.electronAPI?.webContents.onDomReady(handleDomReady);
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupDidNavigate = window.electronAPI?.webContents.onDidNavigate(handleDidNavigate);
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupDidNavigateInPage = window.electronAPI?.webContents.onDidNavigateInPage(handleDidNavigateInPage);
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupDidStartLoading = window.electronAPI?.webContents.onDidStartLoading(handleDidStartLoading);
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupDidStopLoading = window.electronAPI?.webContents.onDidStopLoading(handleDidStopLoading);
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupRenderProcessGone = window.electronAPI?.webContents.onRenderProcessGone(handleRenderProcessGone);
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupDidFailLoad = window.electronAPI?.webContents.onDidFailLoad(handleDidFailLoad);
+
+    // Initial page info fetch after a delay to ensure WebContentsView is ready
+    setTimeout(() => {
+      updatePageInfo();
+      startThemeColorMonitoring();
+    }, 1000);
 
     return () => {
       stopThemeColorMonitoring();
-      webview.removeEventListener('dom-ready', handleDomReady);
-      webview.removeEventListener('did-navigate', handleDidNavigate);
-      webview.removeEventListener('did-navigate-in-page', handleDidNavigateInPage);
-      webview.removeEventListener('did-start-loading', handleDidStartLoading);
-      webview.removeEventListener('did-stop-loading', handleDidStopLoading);
-      webview.removeEventListener('render-process-gone', handleRenderProcessGone);
-      webview.removeEventListener('did-fail-load', handleDidFailLoad);
+      if (cleanupDomReady) cleanupDomReady();
+      if (cleanupDidNavigate) cleanupDidNavigate();
+      if (cleanupDidNavigateInPage) cleanupDidNavigateInPage();
+      if (cleanupDidStartLoading) cleanupDidStartLoading();
+      if (cleanupDidStopLoading) cleanupDidStopLoading();
+      if (cleanupRenderProcessGone) cleanupRenderProcessGone();
+      if (cleanupDidFailLoad) cleanupDidFailLoad();
     };
   }, []);
 
   const handleNavigate = (url: string) => {
-    const webview = webviewRef.current;
-    if (webview) {
-      let finalUrl = url.trim();
-      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-        finalUrl = 'https://' + finalUrl;
-      }
-      webview.loadURL(finalUrl);
+    let finalUrl = url.trim();
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      finalUrl = 'https://' + finalUrl;
+    }
+    // @ts-ignore - electronAPI is exposed via preload
+    window.electronAPI?.webContents.loadURL(finalUrl);
+  };
+
+  const handleBack = async () => {
+    // @ts-ignore - electronAPI is exposed via preload
+    const canGoBack = await window.electronAPI?.webContents.canGoBack();
+    if (canGoBack) {
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.webContents.goBack();
     }
   };
 
-  const handleBack = () => {
-    const webview = webviewRef.current;
-    if (webview && webview.canGoBack()) {
-      webview.goBack();
-    }
-  };
-
-  const handleForward = () => {
-    const webview = webviewRef.current;
-    if (webview && webview.canGoForward()) {
-      webview.goForward();
+  const handleForward = async () => {
+    // @ts-ignore - electronAPI is exposed via preload
+    const canGoForward = await window.electronAPI?.webContents.canGoForward();
+    if (canGoForward) {
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.webContents.goForward();
     }
   };
 
   const handleRefresh = () => {
-    const webview = webviewRef.current;
-    if (webview) {
-      webview.reload();
-    }
+    // @ts-ignore - electronAPI is exposed via preload
+    window.electronAPI?.webContents.reload();
   };
 
   return (
@@ -464,7 +381,7 @@ function App() {
       <TopBar
         pageTitle={pageTitle}
         pageDomain={pageDomain}
-        currentUrl={webviewRef.current?.getURL() || 'https://www.google.com'}
+        currentUrl={currentUrl}
         onNavigate={handleNavigate}
         onBack={handleBack}
         onForward={handleForward}
@@ -472,7 +389,7 @@ function App() {
         theme={systemTheme}
       />
       <PhoneFrame
-        webviewRef={webviewRef}
+        webContainerRef={webContainerRef}
         time={time}
         themeColor={themeColor}
         textColor={textColor}

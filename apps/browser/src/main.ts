@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage, globalShortcut, nativeTheme } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage, globalShortcut, nativeTheme, WebContentsView } from "electron";
 import path from "path";
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isAlwaysOnTop = false;
-let webviewWebContents: any = null; // Store reference to webview's WebContents
+let webContentsView: WebContentsView | null = null; // WebContentsView for embedded content
 
 // iPhone 15 Pro dimensions
 const IPHONE_WIDTH = 393;
@@ -15,6 +15,77 @@ const TOP_BAR_HEIGHT = 52;
 // iPhone 15 Pro User Agent
 const IPHONE_USER_AGENT =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
+// Setup WebContentsView event handlers
+function setupWebContentsViewHandlers(view: WebContentsView) {
+  const contents = view.webContents;
+
+  // Enable context menu (right-click)
+  contents.on('context-menu', (event: any, params: any) => {
+    const menu = Menu.buildFromTemplate([
+      { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
+      { label: 'Forward', enabled: contents.canGoForward(), click: () => contents.goForward() },
+      { label: 'Reload', click: () => contents.reload() },
+      { type: 'separator' },
+      { label: 'Copy', role: 'copy' },
+      { label: 'Paste', role: 'paste' },
+      { label: 'Select All', role: 'selectAll' },
+      { type: 'separator' },
+      { label: 'Inspect Element', click: () => {
+        contents.inspectElement(params.x, params.y);
+        // Ensure DevTools opens in detached mode
+        if (contents.isDevToolsOpened() && !contents.isDevToolsFocused()) {
+          contents.closeDevTools();
+          setTimeout(() => contents.openDevTools({ mode: 'detach' }), 100);
+        }
+      }},
+    ]);
+    menu.popup();
+  });
+
+  contents.on("will-navigate", (event: any, navigationUrl: string) => {
+    // Navigation event - can add custom logic here
+  });
+
+  contents.setWindowOpenHandler(({ url }: { url: string }) => {
+    // Deny opening new windows
+    return { action: "deny" };
+  });
+
+  // Handle render process crashes
+  contents.on('render-process-gone', (event: any, details: any) => {
+    console.error('Render process crashed:', details);
+  });
+
+  // Forward WebContents events to renderer process
+  contents.on('did-start-loading', () => {
+    mainWindow?.webContents.send('webcontents-did-start-loading');
+  });
+
+  contents.on('did-stop-loading', () => {
+    mainWindow?.webContents.send('webcontents-did-stop-loading');
+  });
+
+  contents.on('did-navigate', (event: any, url: string) => {
+    mainWindow?.webContents.send('webcontents-did-navigate', url);
+  });
+
+  contents.on('did-navigate-in-page', (event: any, url: string) => {
+    mainWindow?.webContents.send('webcontents-did-navigate-in-page', url);
+  });
+
+  contents.on('dom-ready', () => {
+    mainWindow?.webContents.send('webcontents-dom-ready');
+  });
+
+  contents.on('did-fail-load', (event: any, errorCode: number, errorDescription: string) => {
+    mainWindow?.webContents.send('webcontents-did-fail-load', errorCode, errorDescription);
+  });
+
+  contents.on('render-process-gone', (event: any, details: any) => {
+    mainWindow?.webContents.send('webcontents-render-process-gone', details);
+  });
+}
 
 function createWindow(): void {
   // Create the browser window with iPhone frame
@@ -27,7 +98,6 @@ function createWindow(): void {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
-      webviewTag: true, // Enable webview tag
     },
     transparent: true,
     frame: false,
@@ -58,6 +128,31 @@ function createWindow(): void {
       mainWindow?.webContents.send("navigate-forward");
     }
   });
+
+  // Create WebContentsView for embedded content
+  webContentsView = new WebContentsView({
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      partition: "persist:main",
+    },
+  });
+
+  // Set iPhone User Agent
+  webContentsView.webContents.setUserAgent(IPHONE_USER_AGENT);
+
+  // Add the WebContentsView to the window
+  mainWindow.contentView.addChildView(webContentsView);
+
+  // Load initial URL in WebContentsView
+  webContentsView.webContents.loadURL("https://www.google.com");
+
+  // Position and size will be set via IPC from renderer
+  // Initial positioning (will be updated by renderer)
+  webContentsView.setBounds({ x: 0, y: 0, width: 100, height: 100 });
+
+  // Setup event handlers for WebContentsView
+  setupWebContentsViewHandlers(webContentsView);
 
   // Load the main UI
   if (process.env.NODE_ENV === "development") {
@@ -118,8 +213,8 @@ ipcMain.on("window-close", () => {
 
 // IPC handler for opening webview DevTools
 ipcMain.on("open-webview-devtools", () => {
-  if (webviewWebContents && !webviewWebContents.isDestroyed()) {
-    webviewWebContents.openDevTools();
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    webContentsView.webContents.openDevTools({ mode: 'detach' });
   }
 });
 
@@ -149,6 +244,72 @@ nativeTheme.on('updated', () => {
   const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('theme-changed', theme);
+  }
+});
+
+// IPC handlers for WebContentsView control
+ipcMain.handle("webcontents-load-url", (event, url: string) => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    webContentsView.webContents.loadURL(url);
+  }
+});
+
+ipcMain.handle("webcontents-go-back", () => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    webContentsView.webContents.goBack();
+  }
+});
+
+ipcMain.handle("webcontents-go-forward", () => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    webContentsView.webContents.goForward();
+  }
+});
+
+ipcMain.handle("webcontents-reload", () => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    webContentsView.webContents.reload();
+  }
+});
+
+ipcMain.handle("webcontents-can-go-back", () => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    return webContentsView.webContents.canGoBack();
+  }
+  return false;
+});
+
+ipcMain.handle("webcontents-can-go-forward", () => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    return webContentsView.webContents.canGoForward();
+  }
+  return false;
+});
+
+ipcMain.handle("webcontents-get-url", () => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    return webContentsView.webContents.getURL();
+  }
+  return "";
+});
+
+ipcMain.handle("webcontents-get-title", () => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    return webContentsView.webContents.getTitle();
+  }
+  return "";
+});
+
+ipcMain.handle("webcontents-execute-javascript", (event, code: string) => {
+  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+    return webContentsView.webContents.executeJavaScript(code);
+  }
+  return Promise.reject("WebContentsView not available");
+});
+
+ipcMain.handle("webcontents-set-bounds", (event, bounds: { x: number, y: number, width: number, height: number }) => {
+  if (webContentsView) {
+    webContentsView.setBounds(bounds);
   }
 });
 
@@ -210,8 +371,8 @@ function createTray(): void {
       {
         label: "Open DevTools",
         click: () => {
-          if (webviewWebContents && !webviewWebContents.isDestroyed()) {
-            webviewWebContents.openDevTools();
+          if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+            webContentsView.webContents.openDevTools({ mode: 'detach' });
           }
         },
       },
@@ -308,49 +469,4 @@ app.on("before-quit", () => {
 // Unregister all shortcuts when app quits
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
-});
-
-// Handle navigation
-app.on("web-contents-created", (event: any, contents: any) => {
-  // Set iPhone User Agent for all web contents (including webviews)
-  contents.setUserAgent(IPHONE_USER_AGENT);
-
-  // Enable context menu (right-click) for webviews
-  if (contents.getType() === 'webview') {
-    // Store reference to webview WebContents for DevTools access
-    webviewWebContents = contents;
-    
-    contents.on('context-menu', (event: any, params: any) => {
-      const menu = Menu.buildFromTemplate([
-        { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
-        { label: 'Forward', enabled: contents.canGoForward(), click: () => contents.goForward() },
-        { label: 'Reload', click: () => contents.reload() },
-        { type: 'separator' },
-        { label: 'Copy', role: 'copy' },
-        { label: 'Paste', role: 'paste' },
-        { label: 'Select All', role: 'selectAll' },
-        { type: 'separator' },
-        { label: 'Inspect Element', click: () => contents.inspectElement(params.x, params.y) },
-      ]);
-      menu.popup();
-    });
-    
-    contents.on('did-attach-webview', (event: any, webContents: any) => {
-      webContents.setFrameRate(30);
-    });
-  }
-
-  contents.on("will-navigate", (event: any, navigationUrl: string) => {
-    // Navigation event
-  });
-
-  contents.setWindowOpenHandler(({ url }: { url: string }) => {
-    // Open links in new window or same webview
-    return { action: "deny" };
-  });
-
-  // Handle render process crashes
-  contents.on('render-process-gone', (event: any, details: any) => {
-    // Render process crashed
-  });
 });
