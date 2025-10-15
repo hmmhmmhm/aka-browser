@@ -448,15 +448,34 @@
     // Update theme color when page loads
     webview.addEventListener('dom-ready', () => {
       console.log('Webview DOM ready');
-      setTimeout(updateThemeColor, 500);
+      updateThemeColor();
+      // Poll for changes in case meta tag is added dynamically
+      setTimeout(updateThemeColor, 100);
+      setTimeout(updateThemeColor, 300);
+      setTimeout(updateThemeColor, 600);
     });
 
     webview.addEventListener('did-navigate', () => {
-      setTimeout(updateThemeColor, 500);
+      updateThemeColor();
+      setTimeout(updateThemeColor, 100);
+      setTimeout(updateThemeColor, 300);
     });
 
     webview.addEventListener('did-navigate-in-page', () => {
-      setTimeout(updateThemeColor, 500);
+      updateThemeColor();
+      setTimeout(updateThemeColor, 100);
+    });
+
+    webview.addEventListener('did-start-loading', () => {
+      // Reset to default while loading
+      document.documentElement.style.setProperty('--theme-color', '#000000');
+      document.documentElement.style.setProperty('--text-color', '#ffffff');
+    });
+
+    webview.addEventListener('did-stop-loading', () => {
+      updateThemeColor();
+      setTimeout(updateThemeColor, 100);
+      setTimeout(updateThemeColor, 300);
     });
   </script>
 </body>
