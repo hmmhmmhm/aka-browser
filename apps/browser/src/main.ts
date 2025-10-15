@@ -1,7 +1,9 @@
-import { app, BrowserWindow, ipcMain, screen, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage } from "electron";
 import path from "path";
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isAlwaysOnTop = false;
 
 // iPhone 15 Pro dimensions
 const IPHONE_WIDTH = 393;
@@ -105,7 +107,12 @@ function createWindow(): void {
 
 // IPC handlers for window controls
 ipcMain.on("window-close", () => {
-  app.quit();
+  // Hide window instead of quitting when tray is active
+  if (mainWindow && tray) {
+    mainWindow.hide();
+  } else {
+    app.quit();
+  }
 });
 
 ipcMain.on("window-minimize", () => {
@@ -124,24 +131,100 @@ ipcMain.on("window-maximize", () => {
   }
 });
 
+// Create tray icon
+function createTray(): void {
+  // Create tray icon - use original image to preserve transparency
+  const iconPath = path.join(__dirname, "../assets/tray-icon.png");
+  
+  // Create from path and ensure it's loaded properly
+  let trayIcon = nativeImage.createFromPath(iconPath);
+  
+  // If icon is empty, try creating from dataURL to preserve transparency
+  if (trayIcon.isEmpty()) {
+    console.error("Tray icon not found at:", iconPath);
+    // Create a simple fallback icon
+    trayIcon = nativeImage.createEmpty();
+  }
+  
+  // For macOS, use template image mode for proper transparency handling
+  // Template images automatically handle transparency and adapt to menu bar appearance
+  if (process.platform === "darwin") {
+    trayIcon.setTemplateImage(true);
+  }
+  
+  tray = new Tray(trayIcon);
+  tray.setToolTip("Aka Browser");
+
+  // Left click: toggle window visibility (don't show menu)
+  tray.on("click", () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
+
+  // Right click: show context menu
+  tray.on("right-click", () => {
+    if (!tray) return;
+    
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: "Always on Top",
+        type: "checkbox",
+        checked: isAlwaysOnTop,
+        click: () => {
+          isAlwaysOnTop = !isAlwaysOnTop;
+          if (mainWindow) {
+            mainWindow.setAlwaysOnTop(isAlwaysOnTop);
+          }
+        },
+      },
+      {
+        type: "separator",
+      },
+      {
+        label: "Quit",
+        click: () => {
+          app.quit();
+        },
+      },
+    ]);
+    tray.popUpContextMenu(contextMenu);
+  });
+}
+
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
   app.setName("Aka Browser");
   createWindow();
+  createTray();
 
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+    } else if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
 });
 
-// Quit when all windows are closed, except on macOS
+// Don't quit when all windows are closed (tray keeps app running)
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
+  // Keep app running in tray
+});
+
+// Clean up tray on quit
+app.on("before-quit", () => {
+  if (tray) {
+    tray.destroy();
+    tray = null;
   }
 });
 

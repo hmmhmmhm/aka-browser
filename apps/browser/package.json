@@ -43,7 +43,8 @@
     },
     "files": [
       "dist/**/*",
-      "dist-renderer/**/*"
+      "dist-renderer/**/*",
+      "assets/**/*"
     ],
     "mac": {
       "target": "dmg",
