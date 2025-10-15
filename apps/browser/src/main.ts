@@ -35,7 +35,11 @@ function createWindow(): void {
   });
 
   // Load the main UI
-  mainWindow.loadFile(path.join(__dirname, "../src/renderer/index.html"));
+  if (process.env.NODE_ENV === "development") {
+    mainWindow.loadURL("http://localhost:5173");
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "../dist-renderer/index.html"));
+  }
 
   // Maintain aspect ratio on resize
   mainWindow.on("will-resize", (event, newBounds) => {
@@ -75,11 +79,6 @@ function createWindow(): void {
       height: newHeight,
     });
   });
-
-  // Open DevTools in development
-  if (process.env.NODE_ENV === "development") {
-    mainWindow.webContents.openDevTools();
-  }
 }
 
 // IPC handlers for window controls

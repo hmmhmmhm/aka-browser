@@ -4,11 +4,14 @@
   "description": "A lightweight, elegant web browser for developers featuring an iPhone frame interface",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run build:watch\" \"npm run start:electron\"",
-    "build": "tsc",
-    "build:watch": "tsc --watch",
-    "start:electron": "electron .",
-    "package": "electron-builder",
+    "dev": "concurrently \"npm run build:main:watch\" \"npm run dev:renderer\" \"npm run start:electron\"",
+    "dev:renderer": "vite",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "tsc",
+    "build:main:watch": "tsc --watch",
+    "build:renderer": "vite build",
+    "start:electron": "cross-env NODE_ENV=development electron .",
+    "package": "npm run build && electron-builder",
     "check-types": "tsc --noEmit"
   },
   "keywords": [
@@ -19,11 +22,18 @@
   "author": "hmmhmmhm",
   "license": "MIT",
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^20.11.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
     "electron": "^28.1.0",
     "electron-builder": "^24.9.1",
-    "typescript": "5.9.2"
+    "tailwindcss": "^4.1.14",
+    "typescript": "5.9.2",
+    "vite": "^7.1.10"
   },
   "build": {
     "appId": "com.aka-browser.app",
@@ -33,11 +43,15 @@
     },
     "files": [
       "dist/**/*",
-      "src/renderer/**/*"
+      "dist-renderer/**/*"
     ],
     "mac": {
       "target": "dmg",
       "category": "public.app-category.developer-tools"
     }
+  },
+  "dependencies": {
+    "react": "19.0.0-rc.1",
+    "react-dom": "19.0.0-rc.1"
   }
 }
