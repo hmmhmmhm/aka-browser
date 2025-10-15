@@ -102,9 +102,6 @@ ipcMain.on("window-maximize", () => {
   }
 });
 
-// Disable hardware acceleration to prevent webview crashes
-app.disableHardwareAcceleration();
-
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
   app.setName("Aka Browser");
