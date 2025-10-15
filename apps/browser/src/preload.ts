@@ -8,4 +8,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.send('window-close'),
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
+  // Navigation gesture listeners
+  onNavigateBack: (callback: () => void) => {
+    ipcRenderer.on('navigate-back', callback);
+    return () => ipcRenderer.removeListener('navigate-back', callback);
+  },
+  onNavigateForward: (callback: () => void) => {
+    ipcRenderer.on('navigate-forward', callback);
+    return () => ipcRenderer.removeListener('navigate-forward', callback);
+  },
 });

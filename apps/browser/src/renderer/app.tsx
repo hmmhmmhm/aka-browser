@@ -182,13 +182,133 @@ function App() {
     }
   };
 
+  // Setup gesture navigation listeners using wheel events
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview) return;
+
+    let accumulatedDeltaX = 0;
+    let isNavigating = false;
+    const SWIPE_THRESHOLD = 100; // Threshold for triggering navigation
+    const RESET_TIMEOUT = 300; // Reset accumulated delta after this timeout
+    let resetTimer: number | null = null;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only handle horizontal swipes (two-finger left/right swipe on trackpad)
+      // Ignore if there's significant vertical scrolling
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        return;
+      }
+
+      // Accumulate horizontal delta
+      accumulatedDeltaX += e.deltaX;
+
+      // Clear previous reset timer
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
+
+      // Set new reset timer
+      resetTimer = window.setTimeout(() => {
+        accumulatedDeltaX = 0;
+        isNavigating = false;
+      }, RESET_TIMEOUT);
+
+      // Check if we've crossed the threshold and not already navigating
+      if (!isNavigating) {
+        if (accumulatedDeltaX < -SWIPE_THRESHOLD && webview.canGoBack()) {
+          // Swipe right (negative deltaX) = go back
+          webview.goBack();
+          isNavigating = true;
+          accumulatedDeltaX = 0;
+        } else if (accumulatedDeltaX > SWIPE_THRESHOLD && webview.canGoForward()) {
+          // Swipe left (positive deltaX) = go forward
+          webview.goForward();
+          isNavigating = true;
+          accumulatedDeltaX = 0;
+        }
+      }
+    };
+
+    // Add wheel event listener to window
+    window.addEventListener('wheel', handleWheel, { passive: true });
+
+    // Inject script into webview to capture wheel events and forward them
+    const injectGestureScript = () => {
+      if (!webview || !webview.executeJavaScript) return;
+      
+      webview.executeJavaScript(`
+        (function() {
+          if (window.__gestureListenerInjected) return;
+          window.__gestureListenerInjected = true;
+          
+          let accumulatedDeltaX = 0;
+          let isNavigating = false;
+          const SWIPE_THRESHOLD = 100;
+          const RESET_TIMEOUT = 300;
+          let resetTimer = null;
+          
+          window.addEventListener('wheel', (e) => {
+            // Only handle horizontal swipes
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+              return;
+            }
+            
+            accumulatedDeltaX += e.deltaX;
+            
+            if (resetTimer) clearTimeout(resetTimer);
+            
+            resetTimer = setTimeout(() => {
+              accumulatedDeltaX = 0;
+              isNavigating = false;
+            }, RESET_TIMEOUT);
+            
+            if (!isNavigating) {
+              if (accumulatedDeltaX < -SWIPE_THRESHOLD) {
+                window.history.back();
+                isNavigating = true;
+                accumulatedDeltaX = 0;
+              } else if (accumulatedDeltaX > SWIPE_THRESHOLD) {
+                window.history.forward();
+                isNavigating = true;
+                accumulatedDeltaX = 0;
+              }
+            }
+          }, { passive: true });
+        })();
+      `).catch(() => {
+        // Ignore errors during injection
+      });
+    };
+
+    // Inject script when webview is ready
+    const handleDomReadyForGesture = () => {
+      injectGestureScript();
+    };
+
+    webview.addEventListener('dom-ready', handleDomReadyForGesture);
+    webview.addEventListener('did-navigate', injectGestureScript);
+    webview.addEventListener('did-navigate-in-page', injectGestureScript);
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      if (webview) {
+        webview.removeEventListener('dom-ready', handleDomReadyForGesture);
+        webview.removeEventListener('did-navigate', injectGestureScript);
+        webview.removeEventListener('did-navigate-in-page', injectGestureScript);
+      }
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
+    };
+  }, []);
+
   // Setup webview event listeners
   useEffect(() => {
     const webview = webviewRef.current;
     if (!webview) return;
 
     const handleDomReady = () => {
-      console.log('Webview DOM ready');
       updatePageInfo();
       startThemeColorMonitoring();
     };
@@ -216,7 +336,6 @@ function App() {
     };
 
     const handleRenderProcessGone = (event: any) => {
-      console.error('Webview render process gone:', event.details);
       stopThemeColorMonitoring();
       
       const now = Date.now();
@@ -238,20 +357,16 @@ function App() {
         setTimeout(() => {
           try {
             if (webview && webview.reload) {
-              console.log('Attempting auto-reload after crash...');
               webview.reload();
             }
           } catch (err) {
-            console.error('Failed to reload after crash:', err);
+            // Failed to reload after crash
           }
         }, 2000);
-      } else {
-        console.error('Too many crashes, auto-reload disabled. Please navigate manually.');
       }
     };
 
     const handleDidFailLoad = (event: any) => {
-      console.error('Webview failed to load:', event);
       stopThemeColorMonitoring();
     };
 

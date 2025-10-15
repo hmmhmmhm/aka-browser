@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu } from "electron";
 import path from "path";
 
 let mainWindow: BrowserWindow | null = null;
@@ -32,6 +32,28 @@ function createWindow(): void {
     backgroundColor: "#00000000",
     roundedCorners: true,
     resizable: true,
+  });
+
+  // Enable swipe navigation gestures on macOS
+  if (process.platform === "darwin") {
+    mainWindow.on("swipe", (event, direction) => {
+      if (direction === "left") {
+        // Swipe left = go forward
+        mainWindow?.webContents.send("navigate-forward");
+      } else if (direction === "right") {
+        // Swipe right = go back
+        mainWindow?.webContents.send("navigate-back");
+      }
+    });
+  }
+
+  // Alternative: Listen for app-command events (works on macOS with trackpad gestures)
+  mainWindow.on("app-command", (event, command) => {
+    if (command === "browser-backward") {
+      mainWindow?.webContents.send("navigate-back");
+    } else if (command === "browser-forward") {
+      mainWindow?.webContents.send("navigate-forward");
+    }
   });
 
   // Load the main UI
@@ -128,15 +150,30 @@ app.on("web-contents-created", (event: any, contents: any) => {
   // Set iPhone User Agent for all web contents (including webviews)
   contents.setUserAgent(IPHONE_USER_AGENT);
 
-  // Disable hardware acceleration for webview to prevent crashes
+  // Enable context menu (right-click) for webviews
   if (contents.getType() === 'webview') {
+    contents.on('context-menu', (event: any, params: any) => {
+      const menu = Menu.buildFromTemplate([
+        { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
+        { label: 'Forward', enabled: contents.canGoForward(), click: () => contents.goForward() },
+        { label: 'Reload', click: () => contents.reload() },
+        { type: 'separator' },
+        { label: 'Copy', role: 'copy' },
+        { label: 'Paste', role: 'paste' },
+        { label: 'Select All', role: 'selectAll' },
+        { type: 'separator' },
+        { label: 'Inspect Element', click: () => contents.inspectElement(params.x, params.y) },
+      ]);
+      menu.popup();
+    });
+    
     contents.on('did-attach-webview', (event: any, webContents: any) => {
       webContents.setFrameRate(30);
     });
   }
 
   contents.on("will-navigate", (event: any, navigationUrl: string) => {
-    console.log("Navigating to:", navigationUrl);
+    // Navigation event
   });
 
   contents.setWindowOpenHandler(({ url }: { url: string }) => {
@@ -146,6 +183,6 @@ app.on("web-contents-created", (event: any, contents: any) => {
 
   // Handle render process crashes
   contents.on('render-process-gone', (event: any, details: any) => {
-    console.error('Render process gone:', details);
+    // Render process crashed
   });
 });
