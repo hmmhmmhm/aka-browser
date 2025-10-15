@@ -35,13 +35,14 @@
         height: 52px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
         padding: 0 16px;
         margin: 8px 8px 12px 8px;
         background: rgba(40, 40, 40, 0.95);
         backdrop-filter: blur(40px) saturate(180%);
         border-radius: 12px;
         -webkit-app-region: drag;
+        gap: 12px;
       }
 
       .window-controls {
@@ -106,17 +107,26 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
       }
 
       .device-name {
         font-size: 13px;
         font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .device-info {
         font-size: 11px;
         color: rgba(255, 255, 255, 0.5);
         font-weight: 400;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .controls {
@@ -325,8 +335,8 @@
           <button class="window-btn minimize" id="minimize-btn"></button>
         </div>
         <div class="app-title">
-          <div class="device-name">iPhone 15 Pro</div>
-          <div class="device-info">iOS 28.0</div>
+          <div class="device-name">Loading...</div>
+          <div class="device-info">www.google.com</div>
         </div>
         <div class="controls">
           <button class="control-btn" id="back-btn" title="Back">←</button>
@@ -373,6 +383,36 @@
       updateTime();
       setInterval(updateTime, 60000);
 
+      // Update page title and domain
+      function updatePageInfo() {
+        try {
+          const url = webview.getURL();
+          
+          // Get page title
+          webview.executeJavaScript('document.title')
+            .then((title) => {
+              const deviceNameEl = document.querySelector('.device-name');
+              deviceNameEl.textContent = title || 'Untitled';
+            })
+            .catch(() => {
+              document.querySelector('.device-name').textContent = 'Untitled';
+            });
+
+          // Extract and display domain
+          if (url) {
+            try {
+              const urlObj = new URL(url);
+              const domain = urlObj.hostname;
+              document.querySelector('.device-info').textContent = domain;
+            } catch (e) {
+              document.querySelector('.device-info').textContent = url;
+            }
+          }
+        } catch (err) {
+          console.error('Error updating page info:', err);
+        }
+      }
+
       // Navigation controls
       const webview = document.getElementById("webview");
       const backBtn = document.getElementById("back-btn");
@@ -391,6 +431,7 @@
 
       webview.addEventListener("dom-ready", () => {
         console.log("Webview DOM ready");
+        updatePageInfo();
       });
 
       webview.addEventListener("did-fail-load", (event) => {
@@ -576,11 +617,13 @@
 
       webview.addEventListener("did-navigate", () => {
         startThemeColorMonitoring();
+        updatePageInfo();
       });
 
       webview.addEventListener("did-navigate-in-page", () => {
         updateThemeColor();
         setTimeout(updateThemeColor, 50);
+        updatePageInfo();
       });
 
       webview.addEventListener("did-start-loading", () => {
