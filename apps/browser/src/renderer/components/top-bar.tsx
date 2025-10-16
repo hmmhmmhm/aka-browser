@@ -7,11 +7,11 @@ interface TopBarProps {
   pageDomain: string;
   currentUrl: string;
   onNavigate: (url: string) => void;
-  onBack: () => void;
-  onForward: () => void;
+  onShowTabs: () => void;
   onRefresh: () => void;
   theme: 'light' | 'dark';
   orientation: 'portrait' | 'landscape';
+  tabCount: number;
 }
 
 function TopBar({
@@ -19,11 +19,11 @@ function TopBar({
   pageDomain,
   currentUrl,
   onNavigate,
-  onBack,
-  onForward,
+  onShowTabs,
   onRefresh,
   theme,
   orientation,
+  tabCount,
 }: TopBarProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -105,10 +105,10 @@ function TopBar({
       </div>
 
       <NavigationControls
-        onBack={onBack}
-        onForward={onForward}
+        onShowTabs={onShowTabs}
         onRefresh={onRefresh}
         theme={theme}
+        tabCount={tabCount}
       />
     </div>
   );

@@ -118,6 +118,17 @@ let isAlwaysOnTop = false;
 let webContentsView: WebContentsView | null = null; // WebContentsView for embedded content
 let isLandscape = false; // Orientation state: false = portrait, true = landscape
 
+// Tab management
+interface Tab {
+  id: string;
+  view: WebContentsView;
+  title: string;
+  url: string;
+}
+
+let tabs: Tab[] = [];
+let activeTabId: string | null = null;
+
 // iPhone 15 Pro dimensions
 const IPHONE_WIDTH = 393;
 const IPHONE_HEIGHT = 852;
@@ -183,8 +194,171 @@ function getWindowDimensions() {
   }
 }
 
+// Create a new tab
+function createTab(url: string = "https://www.google.com"): Tab {
+  const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  const webviewPreloadPath = path.join(__dirname, "webview-preload.js");
+  const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
+
+  const view = new WebContentsView({
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      sandbox: true,
+      partition: "persist:main",
+      ...(hasWebviewPreload ? { preload: webviewPreloadPath } : {}),
+    },
+  });
+
+  view.webContents.setUserAgent(IPHONE_USER_AGENT);
+  
+  const tab: Tab = {
+    id: tabId,
+    view,
+    title: "New Tab",
+    url,
+  };
+
+  tabs.push(tab);
+  setupWebContentsViewHandlers(view, tabId);
+  
+  // Load URL
+  const sanitized = sanitizeUrl(url);
+  if (isValidUrl(sanitized)) {
+    view.webContents.loadURL(sanitized);
+  }
+
+  return tab;
+}
+
+// Switch to a specific tab
+function switchToTab(tabId: string) {
+  const tab = tabs.find(t => t.id === tabId);
+  if (!tab || !mainWindow) return;
+
+  // Hide current active tab
+  if (activeTabId && activeTabId !== tabId) {
+    const currentTab = tabs.find(t => t.id === activeTabId);
+    if (currentTab) {
+      mainWindow.contentView.removeChildView(currentTab.view);
+    }
+  }
+
+  // Show new tab
+  if (!mainWindow.contentView.children.includes(tab.view)) {
+    mainWindow.contentView.addChildView(tab.view);
+  }
+
+  // Update webContentsView reference for backward compatibility
+  webContentsView = tab.view;
+  activeTabId = tabId;
+
+  // Notify renderer about tab change
+  mainWindow.webContents.send("tab-changed", {
+    tabId,
+    tabs: tabs.map(t => ({
+      id: t.id,
+      title: t.title,
+      url: t.url,
+    })),
+  });
+
+  // Update bounds
+  updateWebContentsViewBounds();
+}
+
+// Close a tab
+function closeTab(tabId: string) {
+  const tabIndex = tabs.findIndex(t => t.id === tabId);
+  if (tabIndex === -1) return;
+
+  const tab = tabs[tabIndex];
+  
+  // Remove from window
+  if (mainWindow) {
+    mainWindow.contentView.removeChildView(tab.view);
+  }
+
+  // Destroy the view
+  if (!tab.view.webContents.isDestroyed()) {
+    tab.view.webContents.close();
+  }
+
+  // Remove from tabs array
+  tabs.splice(tabIndex, 1);
+
+  // If this was the active tab, switch to another
+  if (activeTabId === tabId) {
+    if (tabs.length > 0) {
+      // Switch to the previous tab or the first tab
+      const newActiveTab = tabs[Math.max(0, tabIndex - 1)];
+      switchToTab(newActiveTab.id);
+    } else {
+      // No tabs left, create a new one
+      const newTab = createTab();
+      switchToTab(newTab.id);
+    }
+  } else {
+    // Just notify renderer about tab list change
+    if (mainWindow) {
+      mainWindow.webContents.send("tabs-updated", {
+        tabs: tabs.map(t => ({
+          id: t.id,
+          title: t.title,
+          url: t.url,
+        })),
+        activeTabId,
+      });
+    }
+  }
+}
+
+// Update WebContentsView bounds based on current window size
+function updateWebContentsViewBounds() {
+  if (!webContentsView || !mainWindow) return;
+
+  const bounds = mainWindow.getBounds();
+  const dimensions = getWindowDimensions();
+  
+  // Calculate scale factor
+  const scaleX = bounds.width / dimensions.width;
+  const scaleY = bounds.height / dimensions.height;
+
+  if (isLandscape) {
+    const statusBarWidth = STATUS_BAR_WIDTH * scaleX;
+    const frameTop = FRAME_PADDING / 2 * scaleY;
+    const frameBottom = FRAME_PADDING / 2 * scaleY;
+    const frameRight = FRAME_PADDING / 2 * scaleX;
+    const topBarHeight = TOP_BAR_HEIGHT * scaleY;
+
+    webContentsView.setBounds({
+      x: Math.round(statusBarWidth),
+      y: Math.round(topBarHeight + frameTop),
+      width: Math.round(bounds.width - statusBarWidth - frameRight),
+      height: Math.round(bounds.height - topBarHeight - frameTop - frameBottom),
+    });
+  } else {
+    const statusBarHeight = STATUS_BAR_HEIGHT * scaleY;
+    const frameTop = FRAME_PADDING / 2 * scaleY;
+    const frameBottom = FRAME_PADDING / 2 * scaleY;
+    const frameLeft = FRAME_PADDING / 2 * scaleX;
+    const frameRight = FRAME_PADDING / 2 * scaleX;
+    const topBarHeight = TOP_BAR_HEIGHT * scaleY;
+
+    webContentsView.setBounds({
+      x: Math.round(frameLeft),
+      y: Math.round(topBarHeight + statusBarHeight + frameTop),
+      width: Math.round(bounds.width - frameLeft - frameRight),
+      height: Math.round(bounds.height - topBarHeight - statusBarHeight - frameTop - frameBottom),
+    });
+  }
+}
+
 // Setup WebContentsView event handlers
-function setupWebContentsViewHandlers(view: WebContentsView) {
+function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
   const contents = view.webContents;
 
   // Enable context menu (right-click)
@@ -242,8 +416,17 @@ function setupWebContentsViewHandlers(view: WebContentsView) {
   });
 
   contents.setWindowOpenHandler(({ url }: { url: string }) => {
-    // Deny opening new windows
-    return { action: "deny" };
+    // Validate URL before opening
+    if (!isValidUrl(url)) {
+      logSecurityEvent(`Blocked new window with invalid URL`, { url });
+      return { action: "deny" };
+    }
+
+    // Create a new tab for the URL
+    const newTab = createTab(url);
+    switchToTab(newTab.id);
+    
+    return { action: "deny" }; // We handle it ourselves
   });
 
   // Handle render process crashes
@@ -262,11 +445,49 @@ function setupWebContentsViewHandlers(view: WebContentsView) {
   });
 
   contents.on("did-navigate", (event: any, url: string) => {
+    // Update tab info
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab) {
+      tab.url = url;
+      tab.title = contents.getTitle() || url;
+    }
+    
     mainWindow?.webContents.send("webcontents-did-navigate", url);
+    
+    // Notify about tab update if this is the active tab
+    if (activeTabId === tabId && mainWindow) {
+      mainWindow.webContents.send("tabs-updated", {
+        tabs: tabs.map(t => ({
+          id: t.id,
+          title: t.title,
+          url: t.url,
+        })),
+        activeTabId,
+      });
+    }
   });
 
   contents.on("did-navigate-in-page", (event: any, url: string) => {
+    // Update tab info
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab) {
+      tab.url = url;
+      tab.title = contents.getTitle() || url;
+    }
+    
     mainWindow?.webContents.send("webcontents-did-navigate-in-page", url);
+    
+    // Notify about tab update if this is the active tab
+    if (activeTabId === tabId && mainWindow) {
+      mainWindow.webContents.send("tabs-updated", {
+        tabs: tabs.map(t => ({
+          id: t.id,
+          title: t.title,
+          url: t.url,
+        })),
+        activeTabId,
+      });
+    }
   });
 
   contents.on("dom-ready", () => {
@@ -332,71 +553,32 @@ function createWindow(): void {
     }
   });
 
-  // Create WebContentsView for embedded content first
-  const webviewPreloadPath = path.join(__dirname, "webview-preload.js");
-  const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
-
-  webContentsView = new WebContentsView({
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: true, // Explicitly enable web security
-      allowRunningInsecureContent: false, // Block mixed content
-      sandbox: true, // Enable sandbox for additional security
-      partition: "persist:main",
-      // Only load preload if it exists (it may not exist on first run in dev mode)
-      ...(hasWebviewPreload ? { preload: webviewPreloadPath } : {}),
-    },
-  });
-
-  if (!hasWebviewPreload) {
-    console.warn(
-      "[Security] webview-preload.js not found. Theme color extraction will not work until built."
-    );
-  }
-
-  // No border radius - testing layout
-  // webContentsView.setBorderRadius(32);
-
-  // Web content should have white background (default)
-  // Don't set transparent background for web content
-
-  // Set iPhone User Agent
-  webContentsView.webContents.setUserAgent(IPHONE_USER_AGENT);
-
-  // Add the WebContentsView to the window first (will be at bottom of z-order)
-  mainWindow.contentView.addChildView(webContentsView);
-
-  // Load initial URL in WebContentsView
-  webContentsView.webContents.loadURL("https://www.google.com");
-
-  // Position and size will be set via IPC from renderer
-  // Initial positioning (will be updated by renderer)
-  webContentsView.setBounds({ x: 0, y: 0, width: 100, height: 100 });
-  
-  // Setup event handlers for WebContentsView
-  setupWebContentsViewHandlers(webContentsView);
+  // Create initial tab
+  const initialTab = createTab("https://www.google.com");
+  switchToTab(initialTab.id);
 
   // Status bar is now a React component in phone-frame.tsx
 
   // Device frame is rendered as HTML/CSS in phone-frame.tsx
   // Assuming HTML can render on top of WebContentsView
 
-  // Set permission request handler for WebContentsView
-  webContentsView.webContents.session.setPermissionRequestHandler(
-    (webContents, permission, callback) => {
-      // Only allow specific permissions
-      const allowedPermissions = ["clipboard-read", "clipboard-write"];
+  // Set permission request handler for the session (applies to all tabs)
+  if (webContentsView) {
+    webContentsView.webContents.session.setPermissionRequestHandler(
+      (webContents, permission, callback) => {
+        // Only allow specific permissions
+        const allowedPermissions = ["clipboard-read", "clipboard-write"];
 
-      if (allowedPermissions.includes(permission)) {
-        logSecurityEvent(`Permission granted: ${permission}`);
-        callback(true);
-      } else {
-        logSecurityEvent(`Permission denied: ${permission}`);
-        callback(false);
+        if (allowedPermissions.includes(permission)) {
+          logSecurityEvent(`Permission granted: ${permission}`);
+          callback(true);
+        } else {
+          logSecurityEvent(`Permission denied: ${permission}`);
+          callback(false);
+        }
       }
-    }
-  );
+    );
+  }
 
   // Set security headers for the main window (UI only)
   // Note: This only applies to the main window UI, not the WebContentsView
@@ -589,6 +771,83 @@ nativeTheme.on("updated", () => {
   const theme = nativeTheme.shouldUseDarkColors ? "dark" : "light";
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("theme-changed", theme);
+  }
+});
+
+// IPC handlers for tab management
+ipcMain.handle("tabs-get-all", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent("Unauthorized IPC call to tabs-get-all");
+    return { tabs: [], activeTabId: null };
+  }
+  
+  return {
+    tabs: tabs.map(t => ({
+      id: t.id,
+      title: t.title,
+      url: t.url,
+    })),
+    activeTabId,
+  };
+});
+
+ipcMain.handle("tabs-create", (event, url?: string) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent("Unauthorized IPC call to tabs-create");
+    throw new Error("Unauthorized");
+  }
+  
+  const newTab = createTab(url);
+  switchToTab(newTab.id);
+  
+  return {
+    id: newTab.id,
+    title: newTab.title,
+    url: newTab.url,
+  };
+});
+
+ipcMain.handle("tabs-switch", (event, tabId: string) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent("Unauthorized IPC call to tabs-switch");
+    throw new Error("Unauthorized");
+  }
+  
+  switchToTab(tabId);
+});
+
+ipcMain.handle("tabs-close", (event, tabId: string) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent("Unauthorized IPC call to tabs-close");
+    throw new Error("Unauthorized");
+  }
+  
+  closeTab(tabId);
+});
+
+// IPC handler for hiding/showing WebContentsView
+ipcMain.handle("webcontents-set-visible", (event, visible: boolean) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent("Unauthorized IPC call to webcontents-set-visible");
+    throw new Error("Unauthorized");
+  }
+  
+  if (webContentsView && mainWindow) {
+    if (visible) {
+      // Show the view by adding it back
+      if (!mainWindow.contentView.children.includes(webContentsView)) {
+        mainWindow.contentView.addChildView(webContentsView);
+      }
+      // Always update bounds when showing, in case window was resized
+      setTimeout(() => {
+        updateWebContentsViewBounds();
+      }, 50);
+    } else {
+      // Hide the view by removing it
+      if (mainWindow.contentView.children.includes(webContentsView)) {
+        mainWindow.contentView.removeChildView(webContentsView);
+      }
+    }
   }
 });
 

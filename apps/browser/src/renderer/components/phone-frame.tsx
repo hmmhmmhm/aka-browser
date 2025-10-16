@@ -6,6 +6,8 @@ interface PhoneFrameProps {
   orientation: "portrait" | "landscape";
   themeColor: string;
   textColor: string;
+  showTabOverview?: boolean;
+  tabOverviewContent?: React.ReactNode;
 }
 
 function PhoneFrame({
@@ -13,6 +15,8 @@ function PhoneFrame({
   orientation,
   themeColor,
   textColor,
+  showTabOverview,
+  tabOverviewContent,
 }: PhoneFrameProps) {
   const isLandscape = orientation === "landscape";
   // Update WebContentsView bounds when component mounts or window resizes
@@ -74,6 +78,12 @@ function PhoneFrame({
               textColor={textColor}
               orientation={orientation}
             />
+            {/* Tab overview overlay - React component */}
+            {showTabOverview && (
+              <div className="absolute top-0 left-0 right-0 bottom-0 rounded-[32px] overflow-hidden z-50 pointer-events-auto">
+                {tabOverviewContent}
+              </div>
+            )}
           </div>
           <div className="absolute top-[7px] left-[7px] right-[7px] bottom-[7px] rounded-[40px] bg-transparent pointer-events-none box-border border-[8px] border-[#000100] z-[5]" />
         </div>

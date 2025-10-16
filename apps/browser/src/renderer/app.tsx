@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import TopBar from './components/top-bar';
 import PhoneFrame from './components/phone-frame';
+import TabOverview from './components/tab-overview';
 
 function App() {
   const [time, setTime] = useState('9:41');
@@ -11,6 +12,8 @@ function App() {
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('dark');
   const [currentUrl, setCurrentUrl] = useState('https://www.google.com');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [showTabOverview, setShowTabOverview] = useState(false);
+  const [tabCount, setTabCount] = useState(1);
   const webContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize and listen for system theme changes
@@ -48,6 +51,31 @@ function App() {
 
     return () => {
       if (cleanup) cleanup();
+    };
+  }, []);
+
+  // Track tab count
+  useEffect(() => {
+    // Get initial tab count
+    // @ts-ignore - electronAPI is exposed via preload
+    window.electronAPI?.tabs.getAll().then((data: { tabs: any[]; activeTabId: string | null }) => {
+      setTabCount(data.tabs.length);
+    });
+
+    // Listen for tab updates
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupTabChanged = window.electronAPI?.tabs.onTabChanged((data: { tabId: string; tabs: any[] }) => {
+      setTabCount(data.tabs.length);
+    });
+
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanupTabsUpdated = window.electronAPI?.tabs.onTabsUpdated((data: { tabs: any[]; activeTabId: string | null }) => {
+      setTabCount(data.tabs.length);
+    });
+
+    return () => {
+      if (cleanupTabChanged) cleanupTabChanged();
+      if (cleanupTabsUpdated) cleanupTabsUpdated();
     };
   }, []);
 
@@ -377,22 +405,36 @@ function App() {
     window.electronAPI?.webContents.loadURL(finalUrl);
   };
 
-  const handleBack = async () => {
+  const handleToggleTabs = () => {
+    const newState = !showTabOverview;
+    setShowTabOverview(newState);
+    // Toggle WebContentsView visibility
     // @ts-ignore - electronAPI is exposed via preload
-    const canGoBack = await window.electronAPI?.webContents.canGoBack();
-    if (canGoBack) {
-      // @ts-ignore - electronAPI is exposed via preload
-      window.electronAPI?.webContents.goBack();
-    }
+    window.electronAPI?.webContents.setVisible(!newState);
   };
 
-  const handleForward = async () => {
+  const handleCloseTabOverview = () => {
+    setShowTabOverview(false);
+    // Show WebContentsView when closing tab overview
     // @ts-ignore - electronAPI is exposed via preload
-    const canGoForward = await window.electronAPI?.webContents.canGoForward();
-    if (canGoForward) {
-      // @ts-ignore - electronAPI is exposed via preload
-      window.electronAPI?.webContents.goForward();
-    }
+    window.electronAPI?.webContents.setVisible(true);
+    
+    // Trigger bounds update after a short delay
+    setTimeout(() => {
+      if (webContainerRef.current) {
+        const rect = webContainerRef.current.getBoundingClientRect();
+        const statusBarHeight = 58;
+        const statusBarWidth = 58;
+        
+        // @ts-ignore - electronAPI is exposed via preload
+        window.electronAPI?.webContents.setBounds({
+          x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
+          y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
+          width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
+          height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
+        });
+      }
+    }, 100);
   };
 
   const handleRefresh = () => {
@@ -407,17 +449,25 @@ function App() {
         pageDomain={pageDomain}
         currentUrl={currentUrl}
         onNavigate={handleNavigate}
-        onBack={handleBack}
-        onForward={handleForward}
+        onShowTabs={handleToggleTabs}
         onRefresh={handleRefresh}
         theme={systemTheme}
         orientation={orientation}
+        tabCount={tabCount}
       />
       <PhoneFrame
         webContainerRef={webContainerRef}
         orientation={orientation}
         themeColor={themeColor}
         textColor={textColor}
+        showTabOverview={showTabOverview}
+        tabOverviewContent={
+          <TabOverview
+            theme={systemTheme}
+            orientation={orientation}
+            onClose={handleCloseTabOverview}
+          />
+        }
       />
     </div>
   );

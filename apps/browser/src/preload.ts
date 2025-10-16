@@ -40,6 +40,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeAllListeners("orientation-changed");
   },
 
+  // Tab management APIs
+  tabs: {
+    getAll: () => ipcRenderer.invoke("tabs-get-all"),
+    create: (url?: string) => ipcRenderer.invoke("tabs-create", url),
+    switch: (tabId: string) => ipcRenderer.invoke("tabs-switch", tabId),
+    close: (tabId: string) => ipcRenderer.invoke("tabs-close", tabId),
+    onTabChanged: (callback: (data: { tabId: string; tabs: any[] }) => void) => {
+      const listener = (_event: any, data: any) => callback(data);
+      ipcRenderer.on("tab-changed", listener);
+      return () => ipcRenderer.removeListener("tab-changed", listener);
+    },
+    onTabsUpdated: (callback: (data: { tabs: any[]; activeTabId: string | null }) => void) => {
+      const listener = (_event: any, data: any) => callback(data);
+      ipcRenderer.on("tabs-updated", listener);
+      return () => ipcRenderer.removeListener("tabs-updated", listener);
+    },
+  },
+
   // WebContentsView control APIs
   webContents: {
     loadURL: (url: string) => ipcRenderer.invoke("webcontents-load-url", url),
@@ -50,6 +68,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     canGoForward: () => ipcRenderer.invoke("webcontents-can-go-forward"),
     getURL: () => ipcRenderer.invoke("webcontents-get-url"),
     getTitle: () => ipcRenderer.invoke("webcontents-get-title"),
+    setVisible: (visible: boolean) => ipcRenderer.invoke("webcontents-set-visible", visible),
     // Removed executeJavaScript for security - use specific APIs instead
     getThemeColor: () => ipcRenderer.invoke("webcontents-get-theme-color"),
     setBounds: (bounds: {
