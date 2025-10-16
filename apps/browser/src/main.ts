@@ -266,8 +266,10 @@ function switchToTab(tabId: string) {
     })),
   });
 
-  // Update bounds
-  updateWebContentsViewBounds();
+  // Update bounds with a slight delay to ensure view is added
+  setTimeout(() => {
+    updateWebContentsViewBounds();
+  }, 50);
 }
 
 // Close a tab

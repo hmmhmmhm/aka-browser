@@ -66,6 +66,23 @@ function App() {
     // @ts-ignore - electronAPI is exposed via preload
     const cleanupTabChanged = window.electronAPI?.tabs.onTabChanged((data: { tabId: string; tabs: any[] }) => {
       setTabCount(data.tabs.length);
+      
+      // Update bounds when tab changes
+      setTimeout(() => {
+        if (webContainerRef.current) {
+          const rect = webContainerRef.current.getBoundingClientRect();
+          const statusBarHeight = 58;
+          const statusBarWidth = 58;
+          
+          // @ts-ignore - electronAPI is exposed via preload
+          window.electronAPI?.webContents.setBounds({
+            x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
+            y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
+            width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
+            height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
+          });
+        }
+      }, 100);
     });
 
     // @ts-ignore - electronAPI is exposed via preload
@@ -77,7 +94,7 @@ function App() {
       if (cleanupTabChanged) cleanupTabChanged();
       if (cleanupTabsUpdated) cleanupTabsUpdated();
     };
-  }, []);
+  }, [orientation]);
 
   // Update time
   useEffect(() => {
@@ -411,6 +428,25 @@ function App() {
     // Toggle WebContentsView visibility
     // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.setVisible(!newState);
+    
+    // If closing tab overview, update bounds
+    if (!newState) {
+      setTimeout(() => {
+        if (webContainerRef.current) {
+          const rect = webContainerRef.current.getBoundingClientRect();
+          const statusBarHeight = 58;
+          const statusBarWidth = 58;
+          
+          // @ts-ignore - electronAPI is exposed via preload
+          window.electronAPI?.webContents.setBounds({
+            x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
+            y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
+            width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
+            height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
+          });
+        }
+      }, 100);
+    }
   };
 
   const handleCloseTabOverview = () => {
