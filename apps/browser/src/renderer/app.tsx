@@ -283,8 +283,8 @@ function App() {
 
     const handleDidStartLoading = () => {
       stopThemeColorMonitoring();
-      setThemeColor('#ffffff');
-      setTextColor('#000000');
+      // Don't reset theme color here - keep previous color to avoid flashing
+      // The new theme color will be applied when the page loads
     };
 
     const handleDidStopLoading = () => {

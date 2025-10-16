@@ -82,73 +82,92 @@ function setupThemeColorMonitoring() {
 
 // Inject CSS to mask bottom corners (concave/inset curve)
 function injectCornerMask() {
+  // Check if already injected to avoid duplicates
+  if (document.getElementById("webview-corner-mask")) {
+    return;
+  }
+
   const style = document.createElement("style");
   style.id = "webview-corner-mask";
   style.textContent = `
     /* Bottom corner masks with inset curve to match device frame */
     body::before,
     body::after {
-      content: '';
-      position: fixed;
-      bottom: -1px;
-      width: 48px;
-      height: 48px;
-      pointer-events: none;
-      z-index: 2147483647; /* Maximum z-index */
+      content: '' !important;
+      position: fixed !important;
+      bottom: -1px !important;
+      width: 48px !important;
+      height: 48px !important;
+      pointer-events: none !important;
+      z-index: 2147483647 !important; /* Maximum z-index */
     }
 
     body::before {
-      left: -1px;
+      left: -1px !important;
       background:
         radial-gradient(circle at 44px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-        radial-gradient(circle at 41px 0px, transparent 34px, #2b2c2c 30px);
-      background-position: -11px 14px;
-      background-repeat: no-repeat;
+        radial-gradient(circle at 41px 0px, transparent 34px, #2b2c2c 30px) !important;
+      background-position: -11px 14px !important;
+      background-repeat: no-repeat !important;
     }
 
     body::after {
-      right: -1px;
+      right: -1px !important;
       background:
         radial-gradient(circle at 2px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-        radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px);
-      background-position: 13px 14px;
-      background-repeat: no-repeat;
+        radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px) !important;
+      background-position: 13px 14px !important;
+      background-repeat: no-repeat !important;
     }
   `;
 
-  // Insert at the end of head to ensure it has high priority
+  // Try to insert immediately if head exists
   if (document.head) {
     document.head.appendChild(style);
+  } else if (document.documentElement) {
+    // If head doesn't exist, insert directly into documentElement
+    document.documentElement.appendChild(style);
   } else {
-    // If head doesn't exist yet, wait for it
+    // Last resort: wait for documentElement
     const observer = new MutationObserver(() => {
-      if (document.head) {
-        document.head.appendChild(style);
+      if (document.documentElement) {
+        if (document.head) {
+          document.head.appendChild(style);
+        } else {
+          document.documentElement.appendChild(style);
+        }
         observer.disconnect();
       }
     });
-    observer.observe(document.documentElement, {
+    observer.observe(document, {
       childList: true,
       subtree: true,
     });
   }
 }
 
-// Wait for DOM to be ready
+// Inject corner mask immediately - this runs synchronously as soon as preload loads
+injectCornerMask();
+
+// Wait for DOM to be ready for theme monitoring
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
     setupThemeColorMonitoring();
+    // Re-inject to ensure it's still there after DOM is ready
     injectCornerMask();
   });
 } else {
   // DOM is already ready
   setupThemeColorMonitoring();
+  // Re-inject to ensure it's still there
   injectCornerMask();
 }
 
 // Also check when page is fully loaded
 window.addEventListener("load", () => {
   setTimeout(notifyThemeColor, 200);
+  // Re-inject one more time to ensure persistence
+  injectCornerMask();
 });
 
 // Status bar is now a React component in the main renderer
