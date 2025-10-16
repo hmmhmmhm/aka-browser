@@ -62,15 +62,33 @@ function setupThemeColorMonitoring() {
   setTimeout(notifyThemeColor, 100);
   
   // Watch for meta tag changes (some sites update theme-color dynamically)
+  // Only observe <head> to avoid excessive body re-renders
   try {
-    if (document.documentElement) {
-      const observer = new MutationObserver(() => {
-        notifyThemeColor();
+    if (document.head) {
+      const observer = new MutationObserver((mutations) => {
+        // Only notify if meta tag with name="theme-color" was actually changed
+        const hasThemeColorChange = mutations.some(mutation => {
+          if (mutation.type === 'attributes' && mutation.target.nodeName === 'META') {
+            const meta = mutation.target as HTMLMetaElement;
+            return meta.name === 'theme-color';
+          }
+          if (mutation.type === 'childList') {
+            return Array.from(mutation.addedNodes).some(node => 
+              node.nodeName === 'META' && (node as HTMLMetaElement).name === 'theme-color'
+            );
+          }
+          return false;
+        });
+        
+        if (hasThemeColorChange) {
+          notifyThemeColor();
+        }
       });
 
-      observer.observe(document.documentElement, {
+      // Only observe <head>, not the entire document
+      observer.observe(document.head, {
         childList: true,
-        subtree: true,
+        subtree: false,
         attributes: true,
         attributeFilter: ['content'],
       });
@@ -473,36 +491,6 @@ function updateStatusBarOrientation(orientation: 'portrait' | 'landscape') {
   if (statusBarContainer) {
     injectStatusBar();
   }
-  
-  // Update safe area CSS
-  injectSafeAreaCSS();
-}
-
-// Inject safe area CSS variables
-function injectSafeAreaCSS() {
-  // Calculate safe area insets based on orientation
-  const topInset = currentOrientation === 'portrait' ? '58px' : '0px';
-  const leftInset = currentOrientation === 'landscape' ? '58px' : '0px';
-  const bottomInset = '0px';
-  const rightInset = '0px';
-  
-  // Create or update style element
-  let styleElement = document.getElementById('electron-safe-area-style') as HTMLStyleElement;
-  
-  if (!styleElement) {
-    styleElement = document.createElement('style');
-    styleElement.id = 'electron-safe-area-style';
-    document.head.appendChild(styleElement);
-  }
-  
-  // Simple approach: just add padding to body to avoid status bar overlap
-  styleElement.textContent = `
-    /* Prevent content from being hidden by status bar */
-    body {
-      padding-top: ${topInset} !important;
-      padding-left: ${leftInset} !important;
-    }
-  `;
 }
 
 // Setup status bar when DOM is ready
@@ -510,39 +498,10 @@ function setupStatusBar() {
   // Wait a bit for the page to settle
   setTimeout(() => {
     injectStatusBar();
-    injectSafeAreaCSS();
   }, 100);
   
-  // Re-inject on navigation within the same page
-  const observer = new MutationObserver((mutations) => {
-    // Check if body was replaced or major DOM changes
-    const hasBodyChange = mutations.some(mutation => 
-      mutation.type === 'childList' && 
-      (mutation.target === document.documentElement || mutation.target === document.body)
-    );
-    
-    if (hasBodyChange && !statusBarContainer?.parentNode) {
-      injectStatusBar();
-    }
-    
-    // Re-inject safe area CSS if head was replaced
-    const hasHeadChange = mutations.some(mutation =>
-      Array.from(mutation.removedNodes).some(node => 
-        node.nodeName === 'STYLE' && (node as HTMLElement).id === 'electron-safe-area-style'
-      )
-    );
-    
-    if (hasHeadChange) {
-      injectSafeAreaCSS();
-    }
-  });
-  
-  if (document.documentElement) {
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: false,
-    });
-  }
+  // Don't use MutationObserver - it causes excessive re-renders
+  // Status bar will be re-injected on page navigation via window.addEventListener('load')
 }
 
 // Listen for IPC messages from main process
