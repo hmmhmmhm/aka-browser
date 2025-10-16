@@ -1,41 +1,81 @@
 import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage, globalShortcut, nativeTheme, WebContentsView } from "electron";
 import path from "path";
+import fs from "fs";
 
 // URL validation and security
 const ALLOWED_PROTOCOLS = ['http:', 'https:'];
+
+// Dangerous protocols that should always be blocked
+const DANGEROUS_PROTOCOLS = ['file:', 'javascript:', 'data:', 'vbscript:', 'about:', 'blob:'];
+
+// Blocked domains (exact match or subdomain)
 const BLOCKED_DOMAINS: string[] = [
   // Add known malicious domains here
+  // Example: 'malicious.com', 'phishing-site.net'
 ];
 
 function isValidUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
     
-    // Only allow http and https protocols
-    if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
-      console.warn(`Blocked URL with invalid protocol: ${url.protocol}`);
+    // Block dangerous protocols
+    if (DANGEROUS_PROTOCOLS.includes(url.protocol)) {
+      logSecurityEvent(`Blocked dangerous protocol: ${url.protocol}`, { url: urlString });
       return false;
     }
     
-    // Check against blocked domains
-    if (BLOCKED_DOMAINS.some(domain => url.hostname.includes(domain))) {
-      console.warn(`Blocked URL with suspicious domain: ${url.hostname}`);
+    // Only allow http and https protocols
+    if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
+      logSecurityEvent(`Blocked invalid protocol: ${url.protocol}`, { url: urlString });
       return false;
     }
+    
+    // Check against blocked domains (exact match or subdomain)
+    const isBlocked = BLOCKED_DOMAINS.some(domain => 
+      url.hostname === domain || url.hostname.endsWith('.' + domain)
+    );
+    
+    if (isBlocked) {
+      logSecurityEvent(`Blocked suspicious domain: ${url.hostname}`, { url: urlString });
+      return false;
+    }
+    
+    // Allow localhost and private IPs for developer use
+    // This browser is designed for developers who need to access local development servers
     
     return true;
   } catch (error) {
-    console.warn(`Invalid URL format: ${urlString}`);
+    logSecurityEvent(`Invalid URL format: ${urlString}`, { error });
     return false;
+  }
+}
+
+// Security event logging
+function logSecurityEvent(message: string, details?: any) {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`[Security] ${message}`, details);
+  } else {
+    // In production, log to file or monitoring service
+    // For now, just log without details to avoid information disclosure
+    console.warn(`[Security] ${message}`);
   }
 }
 
 function sanitizeUrl(urlString: string): string {
   let url = urlString.trim();
   
-  // If no protocol, add https://
+  // If no protocol, add appropriate protocol
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
+    // Check if it's a local URL (localhost or private IP)
+    const isLocalUrl = /^(localhost|127\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?/i.test(url);
+    
+    if (isLocalUrl) {
+      // Use http:// for local development servers
+      url = 'http://' + url;
+    } else {
+      // Use https:// for external sites
+      url = 'https://' + url;
+    }
   }
   
   return url;
@@ -55,6 +95,9 @@ const TOP_BAR_HEIGHT = 52;
 // iPhone 15 Pro User Agent
 const IPHONE_USER_AGENT =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
+// Store latest theme color from webview
+let latestThemeColor: string | null = null;
 
 // Setup WebContentsView event handlers
 function setupWebContentsViewHandlers(view: WebContentsView) {
@@ -87,8 +130,8 @@ function setupWebContentsViewHandlers(view: WebContentsView) {
     // Validate navigation URL
     if (!isValidUrl(navigationUrl)) {
       event.preventDefault();
-      console.error(`Navigation blocked to invalid URL: ${navigationUrl}`);
-      // Optionally notify the user
+      logSecurityEvent(`Navigation blocked to invalid URL`, { url: navigationUrl });
+      // Notify the user
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('navigation-blocked', navigationUrl);
       }
@@ -107,6 +150,7 @@ function setupWebContentsViewHandlers(view: WebContentsView) {
 
   // Forward WebContents events to renderer process
   contents.on('did-start-loading', () => {
+    latestThemeColor = null; // Reset theme color on navigation
     mainWindow?.webContents.send('webcontents-did-start-loading');
   });
 
@@ -178,15 +222,25 @@ function createWindow(): void {
   });
 
   // Create WebContentsView for embedded content
+  const webviewPreloadPath = path.join(__dirname, "webview-preload.js");
+  const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
+  
   webContentsView = new WebContentsView({
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true, // Explicitly enable web security
       allowRunningInsecureContent: false, // Block mixed content
+      sandbox: true, // Enable sandbox for additional security
       partition: "persist:main",
+      // Only load preload if it exists (it may not exist on first run in dev mode)
+      ...(hasWebviewPreload ? { preload: webviewPreloadPath } : {}),
     },
   });
+  
+  if (!hasWebviewPreload) {
+    console.warn('[Security] webview-preload.js not found. Theme color extraction will not work until built.');
+  }
 
   // Set iPhone User Agent
   webContentsView.webContents.setUserAgent(IPHONE_USER_AGENT);
@@ -204,14 +258,71 @@ function createWindow(): void {
   // Setup event handlers for WebContentsView
   setupWebContentsViewHandlers(webContentsView);
 
-  // Set Content Security Policy for the main window
+  // Set permission request handler for WebContentsView
+  webContentsView.webContents.session.setPermissionRequestHandler(
+    (webContents, permission, callback) => {
+      // Only allow specific permissions
+      const allowedPermissions = ['clipboard-read', 'clipboard-write'];
+      
+      if (allowedPermissions.includes(permission)) {
+        logSecurityEvent(`Permission granted: ${permission}`);
+        callback(true);
+      } else {
+        logSecurityEvent(`Permission denied: ${permission}`);
+        callback(false);
+      }
+    }
+  );
+
+  // Set security headers for the main window (UI only)
+  // Note: This only applies to the main window UI, not the WebContentsView
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    // Only apply strict CSP to the main window's own resources (localhost:5173 or file://)
+    const isMainWindowResource = details.url.includes('localhost:5173') || 
+                                  details.url.startsWith('file://') ||
+                                  details.url.includes('dist-renderer');
+    
+    if (!isMainWindowResource) {
+      // Don't modify CSP for external websites (Google, etc.)
+      // They need their own CSP to function properly
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+    
+    // For main window UI: strict CSP in production, relaxed in development
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:* ws://localhost:*; font-src 'self' data:;"
-        ]
+          isDevelopment
+            ? // Development: Allow Vite HMR and inline scripts
+              "default-src 'self'; " +
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data: https:; " +
+              "connect-src 'self' http://localhost:* ws://localhost:* https:; " +
+              "font-src 'self' data:; " +
+              "object-src 'none'; " +
+              "base-uri 'self'; " +
+              "form-action 'self';"
+            : // Production: Strict CSP for our UI only
+              "default-src 'self'; " +
+              "script-src 'self'; " +
+              "style-src 'self'; " +
+              "img-src 'self' data: https:; " +
+              "connect-src 'self' http://localhost:* ws://localhost:* https:; " +
+              "font-src 'self' data:; " +
+              "object-src 'none'; " +
+              "base-uri 'self'; " +
+              "form-action 'self';"
+        ],
+        'X-Content-Type-Options': ['nosniff'],
+        'X-Frame-Options': ['DENY'],
+        'X-XSS-Protection': ['1; mode=block'],
+        'Referrer-Policy': ['strict-origin-when-cross-origin'],
+        'Permissions-Policy': ['geolocation=(), microphone=(), camera=(), payment=(), usb=()'],
       }
     });
   });
@@ -274,7 +385,13 @@ ipcMain.on("window-close", () => {
 });
 
 // IPC handler for opening webview DevTools
-ipcMain.on("open-webview-devtools", () => {
+ipcMain.on("open-webview-devtools", (event) => {
+  // Verify sender
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized DevTools access attempt');
+    return;
+  }
+  
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     webContentsView.webContents.openDevTools({ mode: 'detach' });
   }
@@ -311,89 +428,124 @@ nativeTheme.on('updated', () => {
 
 // IPC handlers for WebContentsView control
 ipcMain.handle("webcontents-load-url", (event, url: string) => {
+  // Verify sender is the main window
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-load-url');
+    throw new Error('Unauthorized');
+  }
+  
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     const sanitized = sanitizeUrl(url);
     if (isValidUrl(sanitized)) {
       webContentsView.webContents.loadURL(sanitized);
     } else {
-      console.error(`Rejected invalid URL: ${url}`);
-      throw new Error(`Invalid URL: ${url}`);
+      logSecurityEvent(`Rejected invalid URL`, { url });
+      throw new Error(`Invalid URL`);
     }
   }
 });
 
-ipcMain.handle("webcontents-go-back", () => {
+ipcMain.handle("webcontents-go-back", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-go-back');
+    throw new Error('Unauthorized');
+  }
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     webContentsView.webContents.navigationHistory.goBack();
   }
 });
 
-ipcMain.handle("webcontents-go-forward", () => {
+ipcMain.handle("webcontents-go-forward", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-go-forward');
+    throw new Error('Unauthorized');
+  }
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     webContentsView.webContents.navigationHistory.goForward();
   }
 });
 
-ipcMain.handle("webcontents-reload", () => {
+ipcMain.handle("webcontents-reload", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-reload');
+    throw new Error('Unauthorized');
+  }
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     webContentsView.webContents.reload();
   }
 });
 
-ipcMain.handle("webcontents-can-go-back", () => {
+ipcMain.handle("webcontents-can-go-back", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-can-go-back');
+    return false;
+  }
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     return webContentsView.webContents.navigationHistory.canGoBack();
   }
   return false;
 });
 
-ipcMain.handle("webcontents-can-go-forward", () => {
+ipcMain.handle("webcontents-can-go-forward", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-can-go-forward');
+    return false;
+  }
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     return webContentsView.webContents.navigationHistory.canGoForward();
   }
   return false;
 });
 
-ipcMain.handle("webcontents-get-url", () => {
+ipcMain.handle("webcontents-get-url", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-get-url');
+    return "";
+  }
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     return webContentsView.webContents.getURL();
   }
   return "";
 });
 
-ipcMain.handle("webcontents-get-title", () => {
+ipcMain.handle("webcontents-get-title", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-get-title');
+    return "";
+  }
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     return webContentsView.webContents.getTitle();
   }
   return "";
 });
 
-// Removed executeJavaScript handler for security reasons
-// Use specific, safe APIs instead
+// Theme color is now extracted via preload script injection
+// This is safer than executeJavaScript from main process
+ipcMain.handle("webcontents-get-theme-color", async (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-get-theme-color');
+    return null;
+  }
+  return latestThemeColor;
+});
 
-ipcMain.handle("webcontents-get-theme-color", async () => {
-  if (webContentsView && !webContentsView.webContents.isDestroyed()) {
-    try {
-      // Safe, predefined script to get theme color
-      const themeColor = await webContentsView.webContents.executeJavaScript(`
-        (function() {
-          const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-          if (metaThemeColor) {
-            return metaThemeColor.getAttribute('content');
-          }
-          const bodyBg = window.getComputedStyle(document.body).backgroundColor;
-          return bodyBg;
-        })();
-      `);
-      return themeColor;
-    } catch (error) {
-      return null;
+// Receive theme color from webview preload script
+ipcMain.on("webview-theme-color-extracted", (event, themeColor: string) => {
+  // Verify the sender is the webContentsView
+  if (webContentsView && event.sender === webContentsView.webContents) {
+    latestThemeColor = themeColor;
+    // Forward to renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('webcontents-theme-color-updated', themeColor);
     }
   }
-  return null;
 });
 
 ipcMain.handle("webcontents-set-bounds", (event, bounds: { x: number, y: number, width: number, height: number }) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent('Unauthorized IPC call to webcontents-set-bounds');
+    throw new Error('Unauthorized');
+  }
   if (webContentsView) {
     webContentsView.setBounds(bounds);
   }
@@ -517,15 +669,13 @@ app.whenReady().then(() => {
     return true; // Prevent default behavior
   });
 
-  // Register Cmd+Shift+I / Ctrl+Shift+I (DevTools) - only in development mode
-  if (process.env.NODE_ENV === 'development') {
-    globalShortcut.register('CommandOrControl+Shift+I', () => {
-      if (mainWindow && mainWindow.webContents) {
-        mainWindow.webContents.toggleDevTools();
-      }
-      return true; // Prevent default behavior
-    });
-  }
+  // Register Cmd+Shift+I / Ctrl+Shift+I (DevTools)
+  globalShortcut.register('CommandOrControl+Shift+I', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.toggleDevTools();
+    }
+    return true; // Prevent default behavior
+  });
 
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the

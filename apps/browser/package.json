@@ -4,15 +4,20 @@
   "description": "A lightweight, elegant web browser for developers featuring an iPhone frame interface",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run build:main:watch\" \"npm run dev:renderer\" \"npm run start:electron\"",
+    "dev": "concurrently \"npm run build:main:watch\" \"npm run build:webview:watch\" \"npm run dev:renderer\" \"npm run start:electron\"",
     "dev:renderer": "vite",
-    "build": "npm run build:main && npm run build:renderer",
+    "build": "npm run build:main && npm run build:webview && npm run build:renderer",
     "build:main": "tsc",
+    "build:webview": "tsc --project tsconfig.webview.json",
+    "build:webview:watch": "tsc --project tsconfig.webview.json --watch",
     "build:main:watch": "tsc --watch",
     "build:renderer": "vite build",
-    "start:electron": "cross-env NODE_ENV=development electron .",
+    "start:electron": "cross-env NODE_ENV=production electron .",
     "package": "npm run build && electron-builder",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "outdated": "npm outdated"
   },
   "keywords": [
     "electron",
@@ -61,7 +66,7 @@
     }
   },
   "dependencies": {
-    "react": "19.0.0-rc.1",
-    "react-dom": "19.0.0-rc.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

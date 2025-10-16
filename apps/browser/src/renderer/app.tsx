@@ -135,7 +135,7 @@ function App() {
   };
 
   // Interval refs for cleanup
-  const themeMonitoringIntervalRef = useRef<number | null>(null);
+  const themeMonitoringIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isExecutingJavaScriptRef = useRef(false);
   const crashCountRef = useRef(0);
   const lastCrashTimeRef = useRef(0);
@@ -194,7 +194,7 @@ function App() {
     let isNavigating = false;
     const SWIPE_THRESHOLD = 100;
     const RESET_TIMEOUT = 300;
-    let resetTimer: number | null = null;
+    let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleWheel = async (e: WheelEvent) => {
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
@@ -207,10 +207,10 @@ function App() {
         clearTimeout(resetTimer);
       }
 
-      resetTimer = window.setTimeout(() => {
+      resetTimer = setTimeout(() => {
         accumulatedDeltaX = 0;
         isNavigating = false;
-      }, RESET_TIMEOUT);
+      }, RESET_TIMEOUT) as ReturnType<typeof setTimeout>;
 
       if (!isNavigating) {
         // @ts-ignore - electronAPI is exposed via preload
@@ -335,7 +335,16 @@ function App() {
   const handleNavigate = (url: string) => {
     let finalUrl = url.trim();
     if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-      finalUrl = 'https://' + finalUrl;
+      // Check if it's a local URL (localhost or private IP)
+      const isLocalUrl = /^(localhost|127\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?/i.test(finalUrl);
+      
+      if (isLocalUrl) {
+        // Use http:// for local development servers
+        finalUrl = 'http://' + finalUrl;
+      } else {
+        // Use https:// for external sites
+        finalUrl = 'https://' + finalUrl;
+      }
     }
     // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.loadURL(finalUrl);
