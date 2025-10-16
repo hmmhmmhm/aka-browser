@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     create: (url?: string) => ipcRenderer.invoke("tabs-create", url),
     switch: (tabId: string) => ipcRenderer.invoke("tabs-switch", tabId),
     close: (tabId: string) => ipcRenderer.invoke("tabs-close", tabId),
+    closeAll: () => ipcRenderer.invoke("tabs-close-all"),
     onTabChanged: (callback: (data: { tabId: string; tabs: any[] }) => void) => {
       const listener = (_event: any, data: any) => callback(data);
       ipcRenderer.on("tab-changed", listener);

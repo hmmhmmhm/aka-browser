@@ -45,8 +45,8 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
   const handleTabClose = (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation();
     
-    // If this is the last tab, close the overview after closing the tab
-    if (tabs.length === 1) {
+    // If this is the last tab or the active tab, close the overview after closing the tab
+    if (tabs.length === 1 || tabId === activeTabId) {
       // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.tabs.close(tabId);
       onClose();
@@ -59,6 +59,12 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
   const handleNewTab = () => {
     // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.tabs.create();
+    onClose();
+  };
+
+  const handleCloseAll = () => {
+    // @ts-ignore - electronAPI is exposed via preload
+    window.electronAPI?.tabs.closeAll();
     onClose();
   };
 
@@ -91,16 +97,17 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
           Tabs ({tabs.length})
         </h2>
         <button
-          onClick={onClose}
-          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+          onClick={handleCloseAll}
+          className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium text-sm ${
             isDark
-              ? 'hover:bg-zinc-700 text-zinc-400 hover:text-white'
-              : 'hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900'
+              ? 'hover:bg-zinc-800 text-white'
+              : 'hover:bg-zinc-200 text-white'
           }`}
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
+          Close All Tabs
         </button>
       </div>
 
@@ -146,13 +153,13 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
               </div>
 
               {/* Tab Info */}
-              <div className="h-1/4 p-3 flex flex-col justify-center">
-                <div className={`text-sm font-medium truncate mb-1 ${
+              <div className="h-1/4 px-3 py-2 flex flex-col justify-center">
+                <div className={`text-sm font-medium truncate leading-tight mb-0.5 ${
                   isDark ? 'text-white' : 'text-zinc-900'
                 }`}>
                   {tab.title}
                 </div>
-                <div className={`text-xs truncate ${
+                <div className={`text-xs truncate leading-tight ${
                   isDark ? 'text-zinc-400' : 'text-zinc-600'
                 }`}>
                   {getDomainFromUrl(tab.url)}

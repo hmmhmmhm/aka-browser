@@ -883,6 +883,34 @@ ipcMain.handle("tabs-close", (event, tabId: string) => {
   closeTab(tabId);
 });
 
+ipcMain.handle("tabs-close-all", (event) => {
+  if (event.sender !== mainWindow?.webContents) {
+    logSecurityEvent("Unauthorized IPC call to tabs-close-all");
+    throw new Error("Unauthorized");
+  }
+  
+  // Close all tabs
+  const tabsToClose = [...tabs]; // Create a copy to avoid mutation during iteration
+  tabsToClose.forEach(tab => {
+    // Remove from window
+    if (mainWindow) {
+      mainWindow.contentView.removeChildView(tab.view);
+    }
+    
+    // Destroy the view
+    if (!tab.view.webContents.isDestroyed()) {
+      tab.view.webContents.close();
+    }
+  });
+  
+  // Clear tabs array
+  tabs.length = 0;
+  
+  // Create a new tab
+  const newTab = createTab();
+  switchToTab(newTab.id);
+});
+
 // IPC handler for hiding/showing WebContentsView
 ipcMain.handle("webcontents-set-visible", (event, visible: boolean) => {
   if (event.sender !== mainWindow?.webContents) {
