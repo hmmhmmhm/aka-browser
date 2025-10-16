@@ -865,6 +865,14 @@ app.whenReady().then(() => {
     // updateStatusBar - now handled by React();
   }, 1000);
 
+  // Register Cmd+W / Ctrl+W to hide window instead of closing
+  globalShortcut.register("CommandOrControl+W", () => {
+    if (mainWindow && tray) {
+      mainWindow.hide();
+    }
+    return true; // Prevent default behavior
+  });
+
   // Register global shortcuts to prevent default refresh behavior
   // Cmd+R (macOS) / Ctrl+R (Windows/Linux)
   globalShortcut.register("CommandOrControl+R", () => {
