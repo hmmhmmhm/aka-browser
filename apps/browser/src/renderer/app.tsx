@@ -401,7 +401,7 @@ function App() {
   };
 
   return (
-    <div className="w-screen h-screen rounded-xl overflow-hidden">
+    <div className="w-screen h-screen rounded-xl overflow-hidden bg-transparent">
       <TopBar
         pageTitle={pageTitle}
         pageDomain={pageDomain}
@@ -416,6 +416,8 @@ function App() {
       <PhoneFrame
         webContainerRef={webContainerRef}
         orientation={orientation}
+        themeColor={themeColor}
+        textColor={textColor}
       />
     </div>
   );

@@ -123,6 +123,8 @@ const IPHONE_WIDTH = 393;
 const IPHONE_HEIGHT = 852;
 const FRAME_PADDING = 28; // 14px border on each side
 const TOP_BAR_HEIGHT = 52;
+const STATUS_BAR_HEIGHT = 58; // Height of status bar in portrait mode
+const STATUS_BAR_WIDTH = 58; // Width of status bar in landscape mode
 
 // iPhone 15 Pro User Agent
 const IPHONE_USER_AGENT =
@@ -164,32 +166,7 @@ function getLuminance(color: string): number {
   return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
 }
 
-// Send status bar updates to WebContentsView
-function updateWebContentsStatusBar(themeColor?: string) {
-  if (!webContentsView || webContentsView.webContents.isDestroyed()) return;
-  
-  // Update theme color if provided
-  if (themeColor) {
-    const luminance = getLuminance(themeColor);
-    const textColor = luminance > 0.5 ? '#000000' : '#ffffff';
-    
-    webContentsView.webContents.send('update-status-bar-theme', {
-      backgroundColor: themeColor,
-      textColor: textColor,
-    });
-  }
-  
-  // Update time
-  const now = new Date();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  const time = `${hours}:${minutes}`;
-  
-  webContentsView.webContents.send('update-status-bar-time', time);
-  
-  // Update orientation
-  webContentsView.webContents.send('update-status-bar-orientation', isLandscape ? 'landscape' : 'portrait');
-}
+// Status bar is now a React component, no need for IPC updates
 
 // Helper function to get window dimensions based on orientation
 function getWindowDimensions() {
@@ -349,7 +326,7 @@ function createWindow(): void {
     }
   });
 
-  // Create WebContentsView for embedded content
+  // Create WebContentsView for embedded content first
   const webviewPreloadPath = path.join(__dirname, "webview-preload.js");
   const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
 
@@ -372,13 +349,16 @@ function createWindow(): void {
     );
   }
 
-  // Set border radius for WebContentsView
-  webContentsView.setBorderRadius(30);
+  // No border radius - testing layout
+  // webContentsView.setBorderRadius(32);
+
+  // Web content should have white background (default)
+  // Don't set transparent background for web content
 
   // Set iPhone User Agent
   webContentsView.webContents.setUserAgent(IPHONE_USER_AGENT);
 
-  // Add the WebContentsView to the window
+  // Add the WebContentsView to the window first (will be at bottom of z-order)
   mainWindow.contentView.addChildView(webContentsView);
 
   // Load initial URL in WebContentsView
@@ -390,6 +370,11 @@ function createWindow(): void {
   
   // Setup event handlers for WebContentsView
   setupWebContentsViewHandlers(webContentsView);
+
+  // Status bar is now a React component in phone-frame.tsx
+
+  // Device frame is rendered as HTML/CSS in phone-frame.tsx
+  // Assuming HTML can render on top of WebContentsView
 
   // Set permission request handler for WebContentsView
   webContentsView.webContents.session.setPermissionRequestHandler(
@@ -587,7 +572,7 @@ ipcMain.handle("toggle-orientation", () => {
     );
     
     // Update status bar orientation in WebContentsView
-    updateWebContentsStatusBar();
+    // updateStatusBar - now handled by React();
   }
 
   return isLandscape ? "landscape" : "portrait";
@@ -711,7 +696,7 @@ ipcMain.on("webview-theme-color-extracted", (event, themeColor: string) => {
     latestThemeColor = themeColor;
     
     // Update status bar in WebContentsView
-    updateWebContentsStatusBar(themeColor);
+    // updateStatusBar - now handled by React(themeColor);
     
     // Forward to renderer (for backward compatibility)
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -735,6 +720,10 @@ ipcMain.handle(
     }
   }
 );
+
+// Status bar is now a React component, no IPC handler needed
+
+// Device frame is now HTML/CSS, no IPC handler needed
 
 // Create tray icon
 function createTray(): void {
@@ -821,7 +810,7 @@ function createTray(): void {
             );
             
             // Update status bar orientation in WebContentsView
-            updateWebContentsStatusBar();
+            // updateStatusBar - now handled by React();
           }
         },
       },
@@ -868,12 +857,12 @@ app.whenReady().then(() => {
 
   // Update status bar time every minute
   setInterval(() => {
-    updateWebContentsStatusBar();
+    // updateStatusBar - now handled by React();
   }, 60000); // 60 seconds
 
   // Initial status bar update
   setTimeout(() => {
-    updateWebContentsStatusBar();
+    // updateStatusBar - now handled by React();
   }, 1000);
 
   // Register global shortcuts to prevent default refresh behavior

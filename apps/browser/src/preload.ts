@@ -58,6 +58,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
       width: number;
       height: number;
     }) => ipcRenderer.invoke("webcontents-set-bounds", bounds),
+    setStatusBarBounds: (bounds: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }) => ipcRenderer.invoke("statusbar-set-bounds", bounds),
+    setDeviceFrameBounds: (bounds: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }) => ipcRenderer.invoke("deviceframe-set-bounds", bounds),
 
     // Event listeners
     onDidStartLoading: (callback: () => void) => {

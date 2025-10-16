@@ -1,13 +1,18 @@
 import { RefObject, useEffect } from "react";
+import StatusBar from "./status-bar";
 
 interface PhoneFrameProps {
   webContainerRef: RefObject<HTMLDivElement | null>;
   orientation: "portrait" | "landscape";
+  themeColor: string;
+  textColor: string;
 }
 
 function PhoneFrame({
   webContainerRef,
   orientation,
+  themeColor,
+  textColor,
 }: PhoneFrameProps) {
   const isLandscape = orientation === "landscape";
   // Update WebContentsView bounds when component mounts or window resizes
@@ -16,12 +21,19 @@ function PhoneFrame({
       if (!webContainerRef.current) return;
 
       const rect = webContainerRef.current.getBoundingClientRect();
+      const isLandscape = orientation === 'landscape';
+      
+      // Status bar dimensions
+      const statusBarHeight = 58;
+      const statusBarWidth = 58;
+      
+      // Web content positioned below/beside status bar
       // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.webContents.setBounds({
-        x: Math.round(rect.x),
-        y: Math.round(rect.y),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
+        x: Math.round(rect.x + (isLandscape ? statusBarWidth : 0)),
+        y: Math.round(rect.y + (isLandscape ? 0 : statusBarHeight)),
+        width: Math.round(rect.width - (isLandscape ? statusBarWidth : 0)),
+        height: Math.round(rect.height - (isLandscape ? 0 : statusBarHeight)),
       });
     };
 
@@ -40,19 +52,27 @@ function PhoneFrame({
 
   return (
     <div
-      className={`absolute z-10 overflow-visible transition-all duration-300 ${
+      className={`absolute overflow-visible transition-all duration-300 ${
         isLandscape
           ? "top-[72px] left-3 w-[calc(100%-24px)] h-[calc(100%-80px)]"
           : "top-[72px] left-2 w-[calc(100%-16px)] h-[calc(100%-80px)]"
       }`}
+      style={{ zIndex: 9999 }}
     >
+      {/* Device frame - visual only, clicks pass through */}
       <div className="absolute top-0 left-0 w-full h-full rounded-[47px] bg-[#11111d] box-border pointer-events-none p-px transition-transform duration-300 overflow-hidden">
         <div className="relative w-full h-full rounded-[46px] bg-[#54545b] box-border pointer-events-none p-px overflow-hidden before:content-[''] before:absolute before:top-px before:left-px before:right-px before:bottom-px before:rounded-[45px] before:bg-[#525252] before:pointer-events-none before:z-0 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:right-0.5 after:bottom-0.5 after:rounded-[44px] after:bg-[#2b2c2c] after:pointer-events-none after:z-0">
-          <div className="absolute top-[15px] left-[15px] right-[15px] bottom-[15px] rounded-[32px] overflow-hidden z-10 bg-transparent pointer-events-auto">
-            {/* Web content - now takes full area, status bar is injected inside */}
-            <div
+          <div className="absolute top-[15px] left-[15px] right-[15px] bottom-[15px] rounded-[32px] overflow-hidden z-10 bg-transparent pointer-events-none">
+            {/* Web content area - positioned for WebContentsView */}
+            <div 
               ref={webContainerRef}
-              className="absolute top-0 left-0 right-0 bottom-0 bg-white overflow-hidden rounded-[32px]"
+              className="absolute top-0 left-0 right-0 bottom-0 bg-transparent overflow-hidden rounded-[32px] pointer-events-none"
+            />
+            {/* Status bar - React component on top */}
+            <StatusBar 
+              themeColor={themeColor}
+              textColor={textColor}
+              orientation={orientation}
             />
           </div>
           <div className="absolute top-[7px] left-[7px] right-[7px] bottom-[7px] rounded-[40px] bg-transparent pointer-events-none box-border border-[8px] border-[#000100] z-[5]" />
