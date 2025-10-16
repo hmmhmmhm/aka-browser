@@ -209,12 +209,18 @@ function setupWebContentsViewHandlers(view: WebContentsView) {
       {
         label: "Inspect Element",
         click: () => {
-          contents.inspectElement(params.x, params.y);
-          // Ensure DevTools opens in detached mode
-          if (contents.isDevToolsOpened() && !contents.isDevToolsFocused()) {
+          // If DevTools is already open but not in detached mode, close and reopen
+          if (contents.isDevToolsOpened()) {
             contents.closeDevTools();
-            setTimeout(() => contents.openDevTools({ mode: "detach" }), 100);
           }
+          
+          // Open DevTools in detached mode first
+          contents.openDevTools({ mode: "detach" });
+          
+          // Then inspect the specific element after a short delay
+          setTimeout(() => {
+            contents.inspectElement(params.x, params.y);
+          }, 100);
         },
       },
     ]);
@@ -898,10 +904,14 @@ app.whenReady().then(() => {
     return true; // Prevent default behavior
   });
 
-  // Register Cmd+Shift+I / Ctrl+Shift+I (DevTools)
+  // Register Cmd+Shift+I / Ctrl+Shift+I (DevTools for WebContentsView)
   globalShortcut.register("CommandOrControl+Shift+I", () => {
-    if (mainWindow && mainWindow.webContents) {
-      mainWindow.webContents.toggleDevTools();
+    if (webContentsView && !webContentsView.webContents.isDestroyed()) {
+      if (webContentsView.webContents.isDevToolsOpened()) {
+        webContentsView.webContents.closeDevTools();
+      } else {
+        webContentsView.webContents.openDevTools({ mode: "detach" });
+      }
     }
     return true; // Prevent default behavior
   });
