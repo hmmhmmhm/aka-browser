@@ -67,22 +67,20 @@ function App() {
     const cleanupTabChanged = window.electronAPI?.tabs.onTabChanged((data: { tabId: string; tabs: any[] }) => {
       setTabCount(data.tabs.length);
       
-      // Update bounds when tab changes
-      setTimeout(() => {
-        if (webContainerRef.current) {
-          const rect = webContainerRef.current.getBoundingClientRect();
-          const statusBarHeight = 58;
-          const statusBarWidth = 58;
-          
-          // @ts-ignore - electronAPI is exposed via preload
-          window.electronAPI?.webContents.setBounds({
-            x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
-            y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
-            width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
-            height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
-          });
-        }
-      }, 100);
+      // Set bounds from renderer when tab changes
+      if (webContainerRef.current) {
+        const rect = webContainerRef.current.getBoundingClientRect();
+        const statusBarHeight = 58;
+        const statusBarWidth = 58;
+        
+        // @ts-ignore - electronAPI is exposed via preload
+        window.electronAPI?.webContents.setBounds({
+          x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
+          y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
+          width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
+          height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
+        });
+      }
     });
 
     // @ts-ignore - electronAPI is exposed via preload
@@ -425,52 +423,48 @@ function App() {
   const handleToggleTabs = () => {
     const newState = !showTabOverview;
     setShowTabOverview(newState);
+    
+    // If closing tab overview, set bounds before showing view
+    if (!newState && webContainerRef.current) {
+      const rect = webContainerRef.current.getBoundingClientRect();
+      const statusBarHeight = 58;
+      const statusBarWidth = 58;
+      
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.webContents.setBounds({
+        x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
+        y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
+        width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
+        height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
+      });
+    }
+    
     // Toggle WebContentsView visibility
     // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.setVisible(!newState);
-    
-    // If closing tab overview, update bounds
-    if (!newState) {
-      setTimeout(() => {
-        if (webContainerRef.current) {
-          const rect = webContainerRef.current.getBoundingClientRect();
-          const statusBarHeight = 58;
-          const statusBarWidth = 58;
-          
-          // @ts-ignore - electronAPI is exposed via preload
-          window.electronAPI?.webContents.setBounds({
-            x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
-            y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
-            width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
-            height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
-          });
-        }
-      }, 100);
-    }
   };
 
   const handleCloseTabOverview = () => {
     setShowTabOverview(false);
+    
+    // Set bounds before showing view
+    if (webContainerRef.current) {
+      const rect = webContainerRef.current.getBoundingClientRect();
+      const statusBarHeight = 58;
+      const statusBarWidth = 58;
+      
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.webContents.setBounds({
+        x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
+        y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
+        width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
+        height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
+      });
+    }
+    
     // Show WebContentsView when closing tab overview
     // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.setVisible(true);
-    
-    // Trigger bounds update after a short delay
-    setTimeout(() => {
-      if (webContainerRef.current) {
-        const rect = webContainerRef.current.getBoundingClientRect();
-        const statusBarHeight = 58;
-        const statusBarWidth = 58;
-        
-        // @ts-ignore - electronAPI is exposed via preload
-        window.electronAPI?.webContents.setBounds({
-          x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
-          y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
-          width: Math.round(rect.width - (orientation === 'landscape' ? statusBarWidth : 0)),
-          height: Math.round(rect.height - (orientation === 'landscape' ? 0 : statusBarHeight)),
-        });
-      }
-    }, 100);
   };
 
   const handleRefresh = () => {

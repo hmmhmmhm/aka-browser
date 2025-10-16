@@ -247,14 +247,14 @@ function switchToTab(tabId: string) {
     }
   }
 
+  // Update webContentsView reference BEFORE adding view
+  webContentsView = tab.view;
+  activeTabId = tabId;
+
   // Show new tab
   if (!mainWindow.contentView.children.includes(tab.view)) {
     mainWindow.contentView.addChildView(tab.view);
   }
-
-  // Update webContentsView reference for backward compatibility
-  webContentsView = tab.view;
-  activeTabId = tabId;
 
   // Notify renderer about tab change
   mainWindow.webContents.send("tab-changed", {
@@ -265,11 +265,6 @@ function switchToTab(tabId: string) {
       url: t.url,
     })),
   });
-
-  // Update bounds with a slight delay to ensure view is added
-  setTimeout(() => {
-    updateWebContentsViewBounds();
-  }, 50);
 }
 
 // Close a tab
@@ -840,10 +835,6 @@ ipcMain.handle("webcontents-set-visible", (event, visible: boolean) => {
       if (!mainWindow.contentView.children.includes(webContentsView)) {
         mainWindow.contentView.addChildView(webContentsView);
       }
-      // Always update bounds when showing, in case window was resized
-      setTimeout(() => {
-        updateWebContentsViewBounds();
-      }, 50);
     } else {
       // Hide the view by removing it
       if (mainWindow.contentView.children.includes(webContentsView)) {
