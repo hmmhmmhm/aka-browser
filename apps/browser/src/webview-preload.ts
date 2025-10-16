@@ -29,7 +29,19 @@ function extractThemeColor(): string | null {
 function notifyThemeColor() {
   const themeColor = extractThemeColor();
   if (themeColor) {
-    ipcRenderer.send("webview-theme-color-extracted", themeColor);
+    // Extract domain from current URL
+    let domain = "";
+    try {
+      domain = window.location.hostname;
+    } catch (error) {
+      // Fallback if hostname is not accessible
+      domain = "";
+    }
+    
+    ipcRenderer.send("webview-theme-color-extracted", {
+      themeColor,
+      domain,
+    });
   }
 }
 

@@ -144,6 +144,44 @@ const IPHONE_USER_AGENT =
 // Store latest theme color from webview
 let latestThemeColor: string | null = null;
 
+// Theme color cache with LRU eviction (max 100 domains)
+class ThemeColorCache {
+  private cache: Map<string, { color: string; timestamp: number }> = new Map();
+  private readonly maxSize = 100;
+
+  set(domain: string, color: string): void {
+    // Remove oldest entry if cache is full
+    if (this.cache.size >= this.maxSize && !this.cache.has(domain)) {
+      const oldestKey = Array.from(this.cache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp)[0]?.[0];
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+      }
+    }
+
+    this.cache.set(domain, {
+      color,
+      timestamp: Date.now(),
+    });
+  }
+
+  get(domain: string): string | null {
+    const entry = this.cache.get(domain);
+    if (entry) {
+      // Update timestamp on access (LRU)
+      entry.timestamp = Date.now();
+      return entry.color;
+    }
+    return null;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const themeColorCache = new ThemeColorCache();
+
 // Helper function to calculate luminance
 function getLuminance(color: string): number {
   let r: number, g: number, b: number;
@@ -433,7 +471,30 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
 
   // Forward WebContents events to renderer process
   contents.on("did-start-loading", () => {
-    latestThemeColor = null; // Reset theme color on navigation
+    // Try to use cached theme color for the new URL
+    try {
+      const url = contents.getURL();
+      if (url) {
+        const domain = new URL(url).hostname;
+        const cachedColor = themeColorCache.get(domain);
+        if (cachedColor) {
+          latestThemeColor = cachedColor;
+          // Immediately send cached color to prevent white flash
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(
+              "webcontents-theme-color-updated",
+              cachedColor
+            );
+          }
+        } else {
+          latestThemeColor = null; // Reset theme color on navigation
+        }
+      } else {
+        latestThemeColor = null;
+      }
+    } catch (error) {
+      latestThemeColor = null; // Reset theme color on navigation
+    }
     mainWindow?.webContents.send("webcontents-did-start-loading");
   });
 
@@ -948,10 +1009,16 @@ ipcMain.handle("webcontents-get-theme-color", async (event) => {
 });
 
 // Receive theme color from webview preload script
-ipcMain.on("webview-theme-color-extracted", (event, themeColor: string) => {
+ipcMain.on("webview-theme-color-extracted", (event, data: { themeColor: string; domain: string }) => {
   // Verify the sender is the webContentsView
   if (webContentsView && event.sender === webContentsView.webContents) {
+    const { themeColor, domain } = data;
     latestThemeColor = themeColor;
+    
+    // Cache the theme color for this domain
+    if (domain && themeColor) {
+      themeColorCache.set(domain, themeColor);
+    }
     
     // Update status bar in WebContentsView
     // updateStatusBar - now handled by React(themeColor);
