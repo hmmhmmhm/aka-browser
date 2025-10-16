@@ -11,6 +11,7 @@ interface TopBarProps {
   onForward: () => void;
   onRefresh: () => void;
   theme: 'light' | 'dark';
+  orientation: 'portrait' | 'landscape';
 }
 
 function TopBar({
@@ -22,6 +23,7 @@ function TopBar({
   onForward,
   onRefresh,
   theme,
+  orientation,
 }: TopBarProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -47,13 +49,14 @@ function TopBar({
   };
 
   const isDark = theme === 'dark';
+  const isLandscape = orientation === 'landscape';
   
   return (
     <div className={`h-[52px] flex items-center justify-start px-5 mx-2 my-2 mb-3 backdrop-blur-[40px] backdrop-saturate-[180%] rounded-xl [-webkit-app-region:drag] gap-3 transition-colors duration-200 ${
       isDark 
         ? 'bg-[rgba(40,40,40,0.95)]' 
         : 'bg-[rgba(255,255,255,0.85)]'
-    }`}>
+    } ${isLandscape ? 'mx-3' : 'mx-2'}`}>
       <WindowControls theme={theme} />
 
       <div

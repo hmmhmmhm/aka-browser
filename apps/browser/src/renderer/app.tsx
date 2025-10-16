@@ -10,6 +10,7 @@ function App() {
   const [textColor, setTextColor] = useState('#000000');
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('dark');
   const [currentUrl, setCurrentUrl] = useState('https://www.google.com');
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const webContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize and listen for system theme changes
@@ -24,6 +25,25 @@ function App() {
     // @ts-ignore - electronAPI is exposed via preload
     const cleanup = window.electronAPI?.onThemeChanged((theme: 'light' | 'dark') => {
       setSystemTheme(theme);
+    });
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
+  // Initialize and listen for orientation changes
+  useEffect(() => {
+    // Get initial orientation
+    // @ts-ignore - electronAPI is exposed via preload
+    window.electronAPI?.getOrientation().then((orient: 'portrait' | 'landscape') => {
+      setOrientation(orient);
+    });
+
+    // Listen for orientation changes
+    // @ts-ignore - electronAPI is exposed via preload
+    const cleanup = window.electronAPI?.onOrientationChanged((orient: 'portrait' | 'landscape') => {
+      setOrientation(orient);
     });
 
     return () => {
@@ -334,18 +354,25 @@ function App() {
 
   const handleNavigate = (url: string) => {
     let finalUrl = url.trim();
-    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-      // Check if it's a local URL (localhost or private IP)
-      const isLocalUrl = /^(localhost|127\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?/i.test(finalUrl);
-      
-      if (isLocalUrl) {
-        // Use http:// for local development servers
-        finalUrl = 'http://' + finalUrl;
-      } else {
-        // Use https:// for external sites
-        finalUrl = 'https://' + finalUrl;
-      }
+    
+    // If already has a valid protocol, use as-is
+    if (finalUrl.startsWith('http://') || finalUrl.startsWith('https://') || finalUrl.startsWith('file://')) {
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.webContents.loadURL(finalUrl);
+      return;
     }
+    
+    // Check if it's a local URL (localhost or private IP)
+    const isLocalUrl = /^(localhost|127\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?/i.test(finalUrl);
+    
+    if (isLocalUrl) {
+      // Use http:// for local development servers
+      finalUrl = 'http://' + finalUrl;
+    } else {
+      // Use https:// for external sites
+      finalUrl = 'https://' + finalUrl;
+    }
+    
     // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.loadURL(finalUrl);
   };
@@ -384,12 +411,11 @@ function App() {
         onForward={handleForward}
         onRefresh={handleRefresh}
         theme={systemTheme}
+        orientation={orientation}
       />
       <PhoneFrame
         webContainerRef={webContainerRef}
-        time={time}
-        themeColor={themeColor}
-        textColor={textColor}
+        orientation={orientation}
       />
     </div>
   );
