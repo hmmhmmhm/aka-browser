@@ -170,5 +170,78 @@ window.addEventListener("load", () => {
   injectCornerMask();
 });
 
+// Trackpad gesture detection for navigation
+function setupNavigationGestures() {
+  let isGesturing = false;
+  let gestureStartX = 0;
+  let gestureStartY = 0;
+  let accumulatedDeltaX = 0;
+  let accumulatedDeltaY = 0;
+  const GESTURE_THRESHOLD = 100; // Pixels to trigger navigation
+  const VERTICAL_TOLERANCE = 50; // Allow some vertical movement
+
+  window.addEventListener(
+    "wheel",
+    (event: WheelEvent) => {
+      // Only handle horizontal gestures on macOS trackpad
+      // Trackpad gestures have ctrlKey set to false and are smooth
+      if (Math.abs(event.deltaX) < 1) return;
+
+      // Detect start of gesture (large initial delta)
+      if (!isGesturing && Math.abs(event.deltaX) > 4) {
+        isGesturing = true;
+        gestureStartX = event.pageX;
+        gestureStartY = event.pageY;
+        accumulatedDeltaX = 0;
+        accumulatedDeltaY = 0;
+      }
+
+      if (isGesturing) {
+        accumulatedDeltaX += event.deltaX;
+        accumulatedDeltaY += Math.abs(event.deltaY);
+
+        // Check if gesture is primarily horizontal
+        if (accumulatedDeltaY > VERTICAL_TOLERANCE) {
+          // Too much vertical movement, cancel gesture
+          isGesturing = false;
+          return;
+        }
+
+        // Swipe right (negative deltaX) = go back
+        if (accumulatedDeltaX < -GESTURE_THRESHOLD) {
+          event.preventDefault();
+          ipcRenderer.send("webview-navigate-back");
+          isGesturing = false;
+          accumulatedDeltaX = 0;
+          accumulatedDeltaY = 0;
+        }
+        // Swipe left (positive deltaX) = go forward
+        else if (accumulatedDeltaX > GESTURE_THRESHOLD) {
+          event.preventDefault();
+          ipcRenderer.send("webview-navigate-forward");
+          isGesturing = false;
+          accumulatedDeltaX = 0;
+          accumulatedDeltaY = 0;
+        }
+      }
+    },
+    { passive: false }
+  );
+
+  // Reset gesture state when wheel event stops
+  let gestureTimeout: NodeJS.Timeout | null = null;
+  window.addEventListener("wheel", () => {
+    if (gestureTimeout) clearTimeout(gestureTimeout);
+    gestureTimeout = setTimeout(() => {
+      isGesturing = false;
+      accumulatedDeltaX = 0;
+      accumulatedDeltaY = 0;
+    }, 100);
+  });
+}
+
+// Setup gesture detection immediately
+setupNavigationGestures();
+
 // Status bar is now a React component in the main renderer
-// This preload script handles theme color extraction and corner masking
+// This preload script handles theme color extraction, corner masking, and navigation gestures

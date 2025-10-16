@@ -714,6 +714,25 @@ ipcMain.on("webview-theme-color-extracted", (event, themeColor: string) => {
   }
 });
 
+// Handle navigation gestures from WebContentsView
+ipcMain.on("webview-navigate-back", (event) => {
+  // Verify the sender is the webContentsView
+  if (webContentsView && event.sender === webContentsView.webContents) {
+    if (webContentsView.webContents.navigationHistory.canGoBack()) {
+      webContentsView.webContents.navigationHistory.goBack();
+    }
+  }
+});
+
+ipcMain.on("webview-navigate-forward", (event) => {
+  // Verify the sender is the webContentsView
+  if (webContentsView && event.sender === webContentsView.webContents) {
+    if (webContentsView.webContents.navigationHistory.canGoForward()) {
+      webContentsView.webContents.navigationHistory.goForward();
+    }
+  }
+});
+
 ipcMain.handle(
   "webcontents-set-bounds",
   (event, bounds: { x: number; y: number; width: number; height: number }) => {
