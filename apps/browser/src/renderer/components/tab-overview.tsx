@@ -44,8 +44,16 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
 
   const handleTabClose = (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation();
-    // @ts-ignore - electronAPI is exposed via preload
-    window.electronAPI?.tabs.close(tabId);
+    
+    // If this is the last tab, close the overview after closing the tab
+    if (tabs.length === 1) {
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.tabs.close(tabId);
+      onClose();
+    } else {
+      // @ts-ignore - electronAPI is exposed via preload
+      window.electronAPI?.tabs.close(tabId);
+    }
   };
 
   const handleNewTab = () => {
