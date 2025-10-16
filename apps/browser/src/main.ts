@@ -124,6 +124,7 @@ interface Tab {
   view: WebContentsView;
   title: string;
   url: string;
+  preview?: string; // Base64 encoded preview image
 }
 
 let tabs: Tab[] = [];
@@ -277,10 +278,14 @@ function switchToTab(tabId: string) {
   const tab = tabs.find(t => t.id === tabId);
   if (!tab || !mainWindow) return;
 
-  // Hide current active tab
+  // Hide current active tab and capture its preview
   if (activeTabId && activeTabId !== tabId) {
     const currentTab = tabs.find(t => t.id === activeTabId);
     if (currentTab) {
+      // Capture preview before hiding
+      captureTabPreview(activeTabId).catch(err => {
+        console.error("Failed to capture preview on tab switch:", err);
+      });
       mainWindow.contentView.removeChildView(currentTab.view);
     }
   }
@@ -301,6 +306,7 @@ function switchToTab(tabId: string) {
       id: t.id,
       title: t.title,
       url: t.url,
+      preview: t.preview,
     })),
   });
 }
@@ -344,10 +350,46 @@ function closeTab(tabId: string) {
           id: t.id,
           title: t.title,
           url: t.url,
+          preview: t.preview,
         })),
         activeTabId,
       });
     }
+  }
+}
+
+// Capture tab preview
+async function captureTabPreview(tabId: string): Promise<void> {
+  const tab = tabs.find(t => t.id === tabId);
+  if (!tab || tab.view.webContents.isDestroyed()) return;
+
+  try {
+    // Capture screenshot at a reasonable size for preview
+    const image = await tab.view.webContents.capturePage({
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 1200,
+    });
+    
+    // Convert to base64 data URL
+    const dataUrl = image.toDataURL();
+    tab.preview = dataUrl;
+    
+    // Notify renderer about updated tabs
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("tabs-updated", {
+        tabs: tabs.map(t => ({
+          id: t.id,
+          title: t.title,
+          url: t.url,
+          preview: t.preview,
+        })),
+        activeTabId,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to capture tab preview:", error);
   }
 }
 
@@ -500,6 +542,13 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
 
   contents.on("did-stop-loading", () => {
     mainWindow?.webContents.send("webcontents-did-stop-loading");
+    
+    // Capture preview after page loads (with a small delay to ensure rendering)
+    setTimeout(() => {
+      captureTabPreview(tabId).catch(err => {
+        console.error("Failed to capture preview after loading:", err);
+      });
+    }, 500);
   });
 
   contents.on("did-navigate", (event: any, url: string) => {
@@ -519,6 +568,7 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
           id: t.id,
           title: t.title,
           url: t.url,
+          preview: t.preview,
         })),
         activeTabId,
       });
@@ -542,6 +592,7 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
           id: t.id,
           title: t.title,
           url: t.url,
+          preview: t.preview,
         })),
         activeTabId,
       });
@@ -844,6 +895,7 @@ ipcMain.handle("tabs-get-all", (event) => {
       id: t.id,
       title: t.title,
       url: t.url,
+      preview: t.preview,
     })),
     activeTabId,
   };

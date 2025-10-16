@@ -4,6 +4,7 @@ interface Tab {
   id: string;
   title: string;
   url: string;
+  preview?: string;
 }
 
 interface TabOverviewProps {
@@ -135,21 +136,29 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
               style={{ aspectRatio: '3/4' }}
             >
               {/* Tab Preview Area */}
-              <div className={`h-3/4 flex items-center justify-center ${
+              <div className={`h-3/4 flex items-center justify-center overflow-hidden ${
                 isDark ? 'bg-zinc-900' : 'bg-zinc-100'
               }`}>
-                <div className="text-center px-4">
-                  <div className={`text-4xl mb-2 ${
-                    isDark ? 'text-zinc-600' : 'text-zinc-400'
-                  }`}>
-                    🌐
+                {tab.preview ? (
+                  <img
+                    src={tab.preview}
+                    alt={tab.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center px-4">
+                    <div className={`text-4xl mb-2 ${
+                      isDark ? 'text-zinc-600' : 'text-zinc-400'
+                    }`}>
+                      🌐
+                    </div>
+                    <div className={`text-xs font-medium truncate ${
+                      isDark ? 'text-zinc-400' : 'text-zinc-600'
+                    }`}>
+                      {getDomainFromUrl(tab.url)}
+                    </div>
                   </div>
-                  <div className={`text-xs font-medium truncate ${
-                    isDark ? 'text-zinc-400' : 'text-zinc-600'
-                  }`}>
-                    {getDomainFromUrl(tab.url)}
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Tab Info */}
