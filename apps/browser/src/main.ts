@@ -142,6 +142,29 @@ const STATUS_BAR_WIDTH = 58; // Width of status bar in landscape mode
 const IPHONE_USER_AGENT =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
+// Desktop User Agent (macOS Chrome)
+const DESKTOP_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+// Helper function to determine user agent based on URL
+function getUserAgentForUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    // Use desktop user agent for Netflix
+    if (hostname === "netflix.com" || hostname.endsWith(".netflix.com")) {
+      return DESKTOP_USER_AGENT;
+    }
+    
+    // Default to mobile user agent
+    return IPHONE_USER_AGENT;
+  } catch (error) {
+    // If URL parsing fails, default to mobile user agent
+    return IPHONE_USER_AGENT;
+  }
+}
+
 // Store latest theme color from webview
 let latestThemeColor: string | null = null;
 
@@ -252,7 +275,9 @@ function createTab(url: string = "https://www.google.com"): Tab {
     },
   });
 
-  view.webContents.setUserAgent(IPHONE_USER_AGENT);
+  // Set initial user agent based on URL
+  const userAgent = getUserAgentForUrl(url);
+  view.webContents.setUserAgent(userAgent);
   
   const tab: Tab = {
     id: tabId,
@@ -489,6 +514,10 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("navigation-blocked", navigationUrl);
       }
+    } else {
+      // Update user agent based on the navigation URL
+      const userAgent = getUserAgentForUrl(navigationUrl);
+      contents.setUserAgent(userAgent);
     }
   });
 
@@ -996,6 +1025,9 @@ ipcMain.handle("webcontents-load-url", (event, url: string) => {
   if (webContentsView && !webContentsView.webContents.isDestroyed()) {
     const sanitized = sanitizeUrl(url);
     if (isValidUrl(sanitized)) {
+      // Update user agent based on the URL before loading
+      const userAgent = getUserAgentForUrl(sanitized);
+      webContentsView.webContents.setUserAgent(userAgent);
       webContentsView.webContents.loadURL(sanitized);
     } else {
       logSecurityEvent(`Rejected invalid URL`, { url });
