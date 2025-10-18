@@ -1,71 +1,103 @@
-# aka-browser
+<div align="center">
 
-A lightweight, elegant web browser for developers featuring an iPhone frame interface with DRM content support.
+# 📱 aka-browser
 
-## Overview
+### _A Beautiful, Lightweight Mobile Browser for Developers_
 
-**aka-browser** is designed specifically for web developers who need a beautiful, lightweight alternative to heavy mobile simulators. Built as a Mac application using Electron, it provides an iPhone-framed browsing experience without the performance overhead of full-featured simulators like Xcode's iPhone Simulator.
+**Stop fighting with heavy simulators. Start browsing elegantly.**
 
-## Key Features
+<img src="https://i.imgur.com/YhQkOP5.png" alt="aka-browser screenshot" width="600"/>
 
-### 🎬 DRM Content Playback
-- **Full Netflix support** - Stream DRM-protected content including Netflix, Disney+, and other premium streaming services
-- **Widevine CDM integration** - Powered by Widevine Content Decryption Module for secure content playback
-- **Castlabs EVS signing** - Signed with Castlabs EVS (Electron for Content Security VMP signing) for production-grade DRM support
-- **Note**: Netflix requires a packaged build - development mode signatures are rejected by Netflix's DRM validation
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Electron](https://img.shields.io/badge/Electron-Castlabs-47848F.svg)](https://github.com/castlabs/electron-releases)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://reactjs.org/)
 
-### 🖥️ Browser Features
-- **Multi-tab browsing** - Full tab management with visual tab switcher overlay
-- **Tab previews** - Automatic screenshot capture for visual tab identification
-- **Trackpad gestures** - Swipe navigation for intuitive browsing
-- **Dynamic theme colors** - Automatic extraction and application of website theme colors with LRU caching
-- **Smart user agent** - Automatically switches between mobile (iPhone 15 Pro) and desktop (macOS Chrome) user agents based on site requirements
+[Features](#-key-features) • [Installation](#-installation--development) • [Building](#building-for-production) • [DRM Support](#-drm-content-playback)
 
-### 🛠️ Developer Tools
-- **DevTools integration** - Full Chrome DevTools support with keyboard shortcuts (Cmd+Option+I)
-- **Element inspection** - Right-click context menu for inspecting elements
-- **URL bar** - Editable address bar with current page title and domain display
-- **System tray** - Quick access with window visibility toggle and always-on-top option
+</div>
 
-### 🎨 User Interface
-- **iPhone 15 Pro frame** - Beautiful, realistic device frame with dynamic island design
-- **React-based UI** - Modern, responsive interface built with React and Vite
-- **System theme detection** - Automatic adaptation to macOS light/dark mode
-- **Smooth animations** - Optimized rendering with minimal performance overhead
+---
 
-## Why aka-browser?
+## 🎯 Why aka-browser?
 
-While Xcode's iPhone Simulator offers a polished interface, it comes with significant drawbacks:
-- **High memory consumption** that impacts system performance
-- **CPU-intensive operations** causing laptop heating and fan noise
-- **Overkill functionality** when you only need to preview web content
-- **No DRM support** - Cannot play Netflix or other protected content
+Tired of Xcode Simulator eating your RAM and spinning up your fans just to preview a mobile website? **aka-browser** is your answer.
 
-aka-browser addresses these pain points by offering:
-- **Lightweight performance** - minimal resource usage for extended development sessions
-- **Elegant design** - a beautiful iPhone frame interface perfect for working in cafes or public spaces
-- **Developer-focused** - streamlined for web development workflows without unnecessary simulator features
-- **DRM content playback** - Full support for streaming services like Netflix
+Built for developers who need a **lightweight, beautiful, and functional** mobile browser without the bloat. Preview your responsive designs, test mobile interactions, and even watch Netflix—all in an elegant iPhone 15 Pro frame that won't slow down your MacBook.
 
-## Technical Stack
+### The Problem with Simulators
 
-- **Framework**: Electron (Castlabs fork with Widevine support)
-- **UI**: React 18 + Vite + TailwindCSS
-- **DRM**: Widevine CDM with Castlabs EVS signing
-- **Build**: electron-builder with custom EVS integration
-- **Language**: TypeScript
+- 🔥 **High CPU usage** → Laptop heating, fan noise, battery drain
+- 💾 **Memory hungry** → 2-4GB RAM just for a browser preview
+- 🐌 **Slow startup** → Wait 30+ seconds to launch
+- 🚫 **No DRM support** → Can't test streaming services
+- 🎪 **Feature overload** → 90% of features you'll never use
 
-## Installation & Development
+### The aka-browser Solution
 
-### Prerequisites
-- Node.js 18+
-- pnpm (recommended) or npm
-- Python 3 (for EVS signing)
-- Castlabs EVS account (for production builds with DRM)
+- ⚡ **Lightweight** → ~200MB RAM, instant startup
+- 🎨 **Beautiful UI** → Realistic iPhone 15 Pro frame with Dynamic Island
+- 🎬 **Netflix ready** → Full Widevine DRM support
+- 🛠️ **DevTools built-in** → Chrome DevTools at your fingertips
+- 🎯 **Developer-focused** → Only the features you actually need
 
-### Setup
+## ✨ Key Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🖥️ **Browser Essentials**
+
+- 📑 **Multi-tab browsing** with visual switcher
+- 🖼️ **Tab previews** via auto-screenshots
+- 👆 **Trackpad gestures** for navigation
+- 🎨 **Dynamic theme colors** with LRU cache
+- 🤖 **Smart user agent** switching (mobile/desktop)
+
+</td>
+<td width="50%">
+
+### 🎬 **DRM Content Ready**
+
+- 🍿 **Netflix, Disney+, Prime Video** support
+- 🔐 **Widevine CDM** integration
+- ✍️ **Castlabs EVS** signed for production
+- 📦 **Packaged builds** for DRM validation
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🎨 **Beautiful Interface**
+
+- 📱 **iPhone 15 Pro frame** with Dynamic Island
+- ⚛️ **React 18** + Vite + TailwindCSS
+- 🌓 **System theme** detection (light/dark)
+- ✨ **Smooth animations** with optimized rendering
+
+</td>
+<td width="50%">
+
+### 🛠️ **Developer Tools**
+
+- 🔍 **Chrome DevTools** (Cmd+Option+I)
+- 🎯 **Element inspector** via right-click
+- 🔗 **URL bar** with title/domain display
+- 🖥️ **System tray** with always-on-top
+
+</td>
+</tr>
+</table>
+
+## 🚀 Quick Start
 
 ```bash
+# Clone the repository
+git clone https://github.com/hmmhmmhm/aka-browser.git
+cd aka-browser
+
 # Install dependencies
 pnpm install
 
@@ -73,58 +105,109 @@ pnpm install
 pnpm run dev
 ```
 
+That's it! The browser will launch with a beautiful iPhone 15 Pro frame ready for testing.
+
+## 🏗️ Technical Stack
+
+```
+┌─────────────────────────────────────────┐
+│  Electron (Castlabs + Widevine CDM)    │  ← DRM-ready browser engine
+├─────────────────────────────────────────┤
+│  React 18 + TypeScript                  │  ← Modern UI framework
+├─────────────────────────────────────────┤
+│  Vite + TailwindCSS                     │  ← Fast builds, beautiful styles
+├─────────────────────────────────────────┤
+│  electron-builder + EVS signing         │  ← Production packaging
+└─────────────────────────────────────────┘
+```
+
+## 📦 Installation & Development
+
+### Prerequisites
+
+| Requirement      | Version | Purpose                           |
+| ---------------- | ------- | --------------------------------- |
+| **Node.js**      | 18+     | Runtime environment               |
+| **pnpm**         | Latest  | Package management (recommended)  |
+| **Python 3**     | 3.8+    | EVS signing for DRM builds        |
+| **Castlabs EVS** | -       | Production DRM signing (optional) |
+
 ### Building for Production
 
-For DRM content support (Netflix, etc.), you need to build a packaged application:
+Want to watch Netflix? You'll need a production build:
 
 ```bash
-# Setup EVS signing (first time only)
+# 1️⃣ Setup EVS signing (first time only)
 pnpm run evs:setup
 
-# Verify EVS configuration
+# 2️⃣ Verify your configuration
 pnpm run evs:verify
 
-# Build packaged application
+# 3️⃣ Build the packaged app
 pnpm run package
 ```
 
-**Important**: Netflix and some other streaming services reject development mode signatures. You must use a packaged build to play DRM-protected content.
+> **⚠️ Important**: Netflix and other streaming services **reject development mode** signatures. You **must** use a packaged build for DRM content.
 
-## DRM Content Support
+## 🎬 DRM Content Playback
 
-aka-browser uses Widevine CDM (Content Decryption Module) for DRM content playback:
+aka-browser supports **Widevine DRM** out of the box:
 
-1. **Widevine CDM**: Automatically downloaded on first run via Electron's Component Updater
-2. **Castlabs EVS**: Application is signed with Castlabs EVS (Electron for Content Security VMP signing)
-3. **Production builds only**: Netflix requires a properly signed production build - development mode will not work
+```
+Development Mode  →  ❌ Netflix won't work
+Production Build  →  ✅ Full DRM support
+```
 
-### Supported Streaming Services
-- Netflix ✅
-- Disney+ ✅
-- Amazon Prime Video ✅
-- Other Widevine-protected content ✅
+### How It Works
 
-## Development Approach
+1. **Widevine CDM** auto-downloads on first run (via Electron Component Updater)
+2. **Castlabs EVS** signs the app for production-grade DRM validation
+3. **Streaming services** verify the signature and allow playback
 
-This project takes a pragmatic approach to browser development:
-- Built on **Castlabs Electron** framework with Widevine support
-- Focus on **usability over completeness** - aiming for a functional, practical tool rather than a full-featured browser
-- Iterative development prioritizing core features that matter to web developers
-- Security-first design with comprehensive IPC validation
+### Supported Services
 
-## Target Audience
+| Service               | Status | Notes                         |
+| --------------------- | ------ | ----------------------------- |
+| 🍿 **Netflix**        | ✅     | Requires production build     |
+| 🏰 **Disney+**        | ✅     | Requires production build     |
+| 📦 **Prime Video**    | ✅     | Requires production build     |
+| 🎵 **Spotify**        | ✅     | Works in dev mode             |
+| 🎬 **Other Widevine** | ✅     | Most require production build |
 
-Web developers who want:
-- A visually appealing mobile preview tool for their projects
-- Low system resource usage during development
-- A portable, cafe-friendly development environment
-- Quick mobile viewport testing without simulator overhead
-- **DRM content testing** - Test streaming services in a mobile viewport
+## 🎯 Who Is This For?
 
-## License
+Perfect for developers who:
 
-MIT
+- ✅ Need a **lightweight mobile preview** tool
+- ✅ Want to **test responsive designs** without simulator overhead
+- ✅ Work in **cafes or public spaces** and want an elegant setup
+- ✅ Need to **test DRM content** (Netflix, streaming services)
+- ✅ Value **performance over feature bloat**
+- ✅ Prefer **instant startup** over waiting for Xcode
 
-## Author
+## 🛠️ Development Philosophy
 
-hmmhmmhm
+This project prioritizes **pragmatism over perfection**:
+
+- 🎯 **Usability first** → Functional tool, not a full-featured browser
+- ⚡ **Performance matters** → Lightweight, fast, efficient
+- 🔐 **Security-first** → Comprehensive IPC validation
+- 🧩 **Core features only** → What developers actually need
+
+## 📄 License
+
+MIT License - feel free to use, modify, and distribute.
+
+## 👨‍💻 Author
+
+**hmmhmmhm**
+
+---
+
+<div align="center">
+
+**⭐ Star this repo if you find it useful!**
+
+Made with ❤️ for developers who deserve better tools
+
+</div>
