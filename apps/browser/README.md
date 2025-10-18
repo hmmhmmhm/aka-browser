@@ -9,6 +9,7 @@ aka-browser is a developer-focused Electron browser that provides a mobile-like 
 ## Key Features
 
 ### 🎨 UI/UX
+
 - **iPhone Frame Interface**: Simulates an iPhone device with realistic bezels and rounded corners
 - **Dynamic Status Bar**: Adapts background color based on webpage theme-color meta tag
 - **Theme Color Caching**: LRU cache system prevents white flashes during navigation
@@ -16,12 +17,14 @@ aka-browser is a developer-focused Electron browser that provides a mobile-like 
 - **Modern Design**: Backdrop blur effects and smooth animations
 
 ### 🔒 DRM & Media
+
 - **Widevine CDM Support**: Plays DRM-protected content (Netflix, Disney+, etc.)
 - **Automatic CDM Download**: Component Updater handles Widevine installation
 - **EVS Signing**: VMP (Verified Media Path) signing for production builds
 - **Media Permissions**: Configured for camera, microphone, and DRM playback
 
 ### 🌐 Browser Features
+
 - **Multi-Tab Support**: Manage multiple web views with tab switching
 - **Smart User Agent**: Automatically switches between mobile/desktop UA based on domain
   - Default: iPhone 15 Pro (mobile)
@@ -30,6 +33,7 @@ aka-browser is a developer-focused Electron browser that provides a mobile-like 
 - **Navigation Controls**: Back, forward, reload, and URL bar
 
 ### 🛠️ Developer Tools
+
 - **TypeScript**: Full type safety across main, renderer, and preload scripts
 - **React + Vite**: Modern frontend tooling with hot reload
 - **TailwindCSS**: Utility-first styling with v4
@@ -46,7 +50,7 @@ apps/browser/
 │   ├── webview-preload.ts         # Web content preload (theme color, safe area)
 │   ├── renderer/                  # React UI
 │   │   ├── src/
-│   │   │   ├── App.tsx           # Main React component
+│   │   │   ├── app.tsx           # Main React component
 │   │   │   └── main.tsx          # React entry point
 │   │   └── index.html            # HTML template
 │   └── types/                     # TypeScript type definitions
@@ -79,6 +83,7 @@ pnpm dev
 ```
 
 On first launch, Electron will automatically download Widevine CDM to:
+
 ```
 ~/Library/Application Support/@aka-browser/browser/WidevineCdm/
 ```
@@ -149,18 +154,21 @@ aka-browser uses Electron's multi-process architecture:
 ### Key Components
 
 #### Theme Color System
+
 - Extracts `theme-color` meta tag from web pages
 - Caches colors by domain (LRU cache, max 100 entries)
 - Applies cached color immediately on navigation start
 - Updates when new theme color is detected
 
 #### Safe Area Polyfill
+
 - Injects CSS variables: `--safe-area-inset-top/left/bottom/right`
 - Overrides `CSS.supports()` for `env()` function
 - Patches stylesheets to replace `env()` with pixel values
 - Portrait: top=58px, Landscape: left=58px
 
 #### User Agent Switching
+
 - Default: iPhone 15 Pro user agent
 - Netflix domains: macOS Chrome user agent
 - Applied on tab creation, navigation, and programmatic loads
@@ -250,6 +258,7 @@ Key settings in `package.json`:
 ### Debug Logs
 
 Enable verbose logging:
+
 ```bash
 # Check Widevine status
 # Logs appear in console on app startup:
