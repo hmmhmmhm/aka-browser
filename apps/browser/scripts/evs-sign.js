@@ -268,7 +268,7 @@ exports.default = async function(context) {
     throw new Error('EVS environment not configured. Please follow the setup instructions above.');
   }
   
-  // Step 2: Sign the package with EVS VMP FIRST (before adding Widevine CDM)
+  // Step 2: Sign the package with EVS VMP
   console.log('\n[EVS] Step 2: Sign with EVS VMP');
   const success = signPackage(appOutDir, false);
   
@@ -276,10 +276,10 @@ exports.default = async function(context) {
     throw new Error('EVS signing failed');
   }
   
-  // Step 3: Copy Widevine CDM to app bundle AFTER signing
-  // This prevents EVS from modifying the Widevine CDM dylib signature
-  console.log('\n[EVS] Step 3: Copy Widevine CDM (after EVS signing)');
-  copyWidevineCdm(appOutDir, electronPlatformName);
+  // NOTE: Widevine CDM is NOT manually bundled
+  // castlabs v16+ uses Component Updater to automatically download and install CDM
+  // Manual bundling is not recommended and has legal implications
+  console.log('\n[EVS] Widevine CDM will be downloaded automatically by Component Updater on first run');
 };
 
 // Allow running this script directly for verification

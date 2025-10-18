@@ -11,6 +11,9 @@ import {
   WebContentsView,
 } from "electron";
 
+// @ts-ignore - castlabs specific API
+import { components } from "electron";
+
 import path from "path";
 import fs from "fs";
 
@@ -19,78 +22,10 @@ console.log('[Widevine] Electron app path:', app.getAppPath());
 console.log('[Widevine] Electron version:', process.versions.electron);
 console.log('[Widevine] Process versions:', JSON.stringify(process.versions, null, 2));
 
-// Set Widevine CDM path - CRITICAL for production builds
-const isPackaged = app.isPackaged;
-console.log('[Widevine] Is packaged:', isPackaged);
-
-if (isPackaged) {
-  // Production: Widevine CDM is bundled in the app
-  // Try multiple possible locations
-  
-  console.log('[Widevine] process.resourcesPath:', process.resourcesPath);
-  console.log('[Widevine] __dirname:', __dirname);
-  
-  // Location 1: Resources/WidevineCdm (preferred for component updater)
-  const resourcesPath = path.join(process.resourcesPath, 'WidevineCdm');
-  
-  // Location 2: Frameworks/Electron Framework.framework/.../Libraries/WidevineCdm
-  const frameworkPath = path.join(
-    process.resourcesPath,
-    '..',
-    'Frameworks',
-    'Electron Framework.framework',
-    'Versions',
-    'A',
-    'Libraries',
-    'WidevineCdm'
-  );
-  
-  console.log('[Widevine] Checking Resources path:', resourcesPath);
-  console.log('[Widevine] Checking Framework path:', frameworkPath);
-  
-  // Use whichever path exists
-  const cdmBasePath = fs.existsSync(resourcesPath) ? resourcesPath : frameworkPath;
-  console.log('[Widevine] Using CDM base path:', cdmBasePath);
-  console.log('[Widevine] CDM base path exists:', fs.existsSync(cdmBasePath));
-  
-  // Find the Widevine CDM version directory
-  if (fs.existsSync(cdmBasePath)) {
-    const versions = fs.readdirSync(cdmBasePath).filter(f => f.match(/^\d+\.\d+\.\d+\.\d+$/));
-    if (versions.length > 0) {
-      const latestVersion = versions.sort().reverse()[0];
-      const cdmPath = path.join(cdmBasePath, latestVersion);
-      
-      console.log('[Widevine] CDM directory:', cdmPath);
-      console.log('[Widevine] CDM version:', latestVersion);
-      
-      // Verify the dylib exists
-      const dylibPath = path.join(cdmPath, '_platform_specific/mac_arm64/libwidevinecdm.dylib');
-      console.log('[Widevine] dylib path:', dylibPath);
-      console.log('[Widevine] dylib exists:', fs.existsSync(dylibPath));
-      
-      if (fs.existsSync(dylibPath)) {
-        // CRITICAL: widevine-cdm-path must point to the VERSION DIRECTORY (not dylib)
-        // Electron will look for manifest.json in this directory
-        console.log('[Widevine] Setting CDM path to version directory:', cdmPath);
-        app.commandLine.appendSwitch('widevine-cdm-path', cdmPath);
-        app.commandLine.appendSwitch('widevine-cdm-version', latestVersion);
-        
-        // Verify manifest.json exists
-        const manifestPath = path.join(cdmPath, 'manifest.json');
-        console.log('[Widevine] manifest.json exists:', fs.existsSync(manifestPath));
-      } else {
-        console.error('[Widevine] ✗ libwidevinecdm.dylib not found!');
-      }
-    } else {
-      console.error('[Widevine] No Widevine CDM version found in:', cdmBasePath);
-    }
-  } else {
-    console.error('[Widevine] Widevine CDM directory not found:', cdmBasePath);
-  }
-} else {
-  // Development: Widevine CDM is in Application Support
-  console.log('[Widevine] Development mode - CDM will be loaded from Application Support');
-}
+// NOTE: Do NOT manually set widevine-cdm-path or widevine-cdm-version
+// castlabs v16+ uses Component Updater to automatically download and install Widevine CDM
+// Manual CDM bundling is not recommended and has legal implications
+console.log('[Widevine] Using Component Updater for automatic CDM installation');
 
 // Enable Widevine features and DRM
 app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision');
@@ -108,8 +43,38 @@ console.log('[Widevine] Command line switches configured');
 console.log('[Widevine] Chromium verbose logging enabled');
 
 // Verify Widevine plugin on startup
-app.on('ready', () => {
-  console.log('[Widevine] App ready - checking Widevine...');
+app.on('ready', async () => {
+  console.log('[Component] App ready');
+  
+  // @ts-ignore - castlabs specific API
+  if (typeof components !== 'undefined') {
+    // @ts-ignore
+    console.log('[Component] Initial status:', components.status());
+    // @ts-ignore
+    console.log('[Component] Updates enabled:', components.updatesEnabled);
+    
+    console.log('[Component] Waiting for Widevine CDM...');
+    const startTime = Date.now();
+    
+    try {
+      // @ts-ignore
+      const results = await components.whenReady();
+      const elapsed = Date.now() - startTime;
+      console.log(`[Component] ✓ Ready after ${elapsed}ms`);
+      console.log('[Component] Results:', results);
+      // @ts-ignore
+      console.log('[Component] Final status:', components.status());
+    } catch (error: any) {
+      console.error('[Component] ✗ Failed:', error);
+      if (error.errors) {
+        error.errors.forEach((err: any, i: number) => {
+          console.error(`[Component] Error ${i+1}:`, err);
+        });
+      }
+    }
+  } else {
+    console.warn('[Component] components API not available - not using castlabs electron?');
+  }
   
   // @ts-ignore - castlabs specific API
   if (typeof app.isEVSEnabled === 'function') {
@@ -117,9 +82,7 @@ app.on('ready', () => {
     console.log('[Widevine] EVS enabled:', app.isEVSEnabled());
   }
   
-  // Log Widevine CDM path
-  const appPath = app.getAppPath();
-  console.log('[Widevine] App path:', appPath);
+  console.log('[Widevine] App path:', app.getAppPath());
   console.log('[Widevine] __dirname:', __dirname);
 });
 
