@@ -61,7 +61,16 @@ export class TrayManager {
   private showContextMenu(): void {
     if (!this.state.tray) return;
 
-    const contextMenu = Menu.buildFromTemplate([
+    const menuTemplate: Electron.MenuItemConstructorOptions[] = [
+      {
+        label: "Open Browser",
+        click: () => {
+          if (this.state.mainWindow) {
+            this.state.mainWindow.show();
+            this.state.mainWindow.focus();
+          }
+        },
+      },
       {
         label: "Always on Top",
         type: "checkbox",
@@ -72,9 +81,6 @@ export class TrayManager {
             this.state.mainWindow.setAlwaysOnTop(this.state.isAlwaysOnTop);
           }
         },
-      },
-      {
-        type: "separator",
       },
       {
         label: "Toggle Orientation",
@@ -93,6 +99,21 @@ export class TrayManager {
           }
         },
       },
+    ];
+
+    // Add "Open DevTools (Main)" only in development mode
+    if (!app.isPackaged) {
+      menuTemplate.push({
+        label: "Open DevTools (Main)",
+        click: () => {
+          if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+            this.state.mainWindow.webContents.openDevTools({ mode: "detach" });
+          }
+        },
+      });
+    }
+
+    menuTemplate.push(
       {
         type: "separator",
       },
@@ -101,8 +122,10 @@ export class TrayManager {
         click: () => {
           app.quit();
         },
-      },
-    ]);
+      }
+    );
+
+    const contextMenu = Menu.buildFromTemplate(menuTemplate);
     this.state.tray.popUpContextMenu(contextMenu);
   }
 
