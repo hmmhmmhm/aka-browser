@@ -10,13 +10,124 @@ import {
   nativeTheme,
   WebContentsView,
 } from "electron";
+
 import path from "path";
 import fs from "fs";
 
+// Widevine CDM configuration for castlabs electron-releases
+console.log('[Widevine] Electron app path:', app.getAppPath());
+console.log('[Widevine] Electron version:', process.versions.electron);
+console.log('[Widevine] Process versions:', JSON.stringify(process.versions, null, 2));
+
+// Set Widevine CDM path - CRITICAL for production builds
+const isPackaged = app.isPackaged;
+console.log('[Widevine] Is packaged:', isPackaged);
+
+if (isPackaged) {
+  // Production: Widevine CDM is bundled in the app
+  // Try multiple possible locations
+  
+  console.log('[Widevine] process.resourcesPath:', process.resourcesPath);
+  console.log('[Widevine] __dirname:', __dirname);
+  
+  // Location 1: Resources/WidevineCdm (preferred for component updater)
+  const resourcesPath = path.join(process.resourcesPath, 'WidevineCdm');
+  
+  // Location 2: Frameworks/Electron Framework.framework/.../Libraries/WidevineCdm
+  const frameworkPath = path.join(
+    process.resourcesPath,
+    '..',
+    'Frameworks',
+    'Electron Framework.framework',
+    'Versions',
+    'A',
+    'Libraries',
+    'WidevineCdm'
+  );
+  
+  console.log('[Widevine] Checking Resources path:', resourcesPath);
+  console.log('[Widevine] Checking Framework path:', frameworkPath);
+  
+  // Use whichever path exists
+  const cdmBasePath = fs.existsSync(resourcesPath) ? resourcesPath : frameworkPath;
+  console.log('[Widevine] Using CDM base path:', cdmBasePath);
+  console.log('[Widevine] CDM base path exists:', fs.existsSync(cdmBasePath));
+  
+  // Find the Widevine CDM version directory
+  if (fs.existsSync(cdmBasePath)) {
+    const versions = fs.readdirSync(cdmBasePath).filter(f => f.match(/^\d+\.\d+\.\d+\.\d+$/));
+    if (versions.length > 0) {
+      const latestVersion = versions.sort().reverse()[0];
+      const cdmPath = path.join(cdmBasePath, latestVersion);
+      
+      console.log('[Widevine] CDM directory:', cdmPath);
+      console.log('[Widevine] CDM version:', latestVersion);
+      
+      // Verify the dylib exists
+      const dylibPath = path.join(cdmPath, '_platform_specific/mac_arm64/libwidevinecdm.dylib');
+      console.log('[Widevine] dylib path:', dylibPath);
+      console.log('[Widevine] dylib exists:', fs.existsSync(dylibPath));
+      
+      if (fs.existsSync(dylibPath)) {
+        // CRITICAL: widevine-cdm-path must point to the VERSION DIRECTORY (not dylib)
+        // Electron will look for manifest.json in this directory
+        console.log('[Widevine] Setting CDM path to version directory:', cdmPath);
+        app.commandLine.appendSwitch('widevine-cdm-path', cdmPath);
+        app.commandLine.appendSwitch('widevine-cdm-version', latestVersion);
+        
+        // Verify manifest.json exists
+        const manifestPath = path.join(cdmPath, 'manifest.json');
+        console.log('[Widevine] manifest.json exists:', fs.existsSync(manifestPath));
+      } else {
+        console.error('[Widevine] ✗ libwidevinecdm.dylib not found!');
+      }
+    } else {
+      console.error('[Widevine] No Widevine CDM version found in:', cdmBasePath);
+    }
+  } else {
+    console.error('[Widevine] Widevine CDM directory not found:', cdmBasePath);
+  }
+} else {
+  // Development: Widevine CDM is in Application Support
+  console.log('[Widevine] Development mode - CDM will be loaded from Application Support');
+}
+
+// Enable Widevine features and DRM
+app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision');
+
+// Additional flags for Widevine CDM
+app.commandLine.appendSwitch('ignore-certificate-errors'); // For development/testing
+app.commandLine.appendSwitch('allow-running-insecure-content'); // For development/testing
+
+// CRITICAL: Enable Chromium verbose logging for debugging
+app.commandLine.appendSwitch('enable-logging');
+app.commandLine.appendSwitch('v', '1'); // Verbosity level 1
+app.commandLine.appendSwitch('vmodule', 'widevine*=3,cdm*=3,drm*=3,eme*=3,component*=3'); // Detailed logging for specific modules
+
+console.log('[Widevine] Command line switches configured');
+console.log('[Widevine] Chromium verbose logging enabled');
+
+// Verify Widevine plugin on startup
+app.on('ready', () => {
+  console.log('[Widevine] App ready - checking Widevine...');
+  
+  // @ts-ignore - castlabs specific API
+  if (typeof app.isEVSEnabled === 'function') {
+    // @ts-ignore
+    console.log('[Widevine] EVS enabled:', app.isEVSEnabled());
+  }
+  
+  // Log Widevine CDM path
+  const appPath = app.getAppPath();
+  console.log('[Widevine] App path:', appPath);
+  console.log('[Widevine] __dirname:', __dirname);
+});
+
 // URL validation and security
-const ALLOWED_PROTOCOLS = process.env.NODE_ENV === "development" 
-  ? ["http:", "https:", "file:"]
-  : ["http:", "https:"];
+const ALLOWED_PROTOCOLS =
+  process.env.NODE_ENV === "development"
+    ? ["http:", "https:", "file:"]
+    : ["http:", "https:"];
 
 // Dangerous protocols that should always be blocked
 const DANGEROUS_PROTOCOLS = [
@@ -90,7 +201,11 @@ function sanitizeUrl(urlString: string): string {
   let url = urlString.trim();
 
   // If already has a valid protocol, return as-is
-  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("file://")) {
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("file://")
+  ) {
     return url;
   }
 
@@ -151,12 +266,12 @@ function getUserAgentForUrl(url: string): string {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.toLowerCase();
-    
+
     // Use desktop user agent for Netflix
     if (hostname === "netflix.com" || hostname.endsWith(".netflix.com")) {
       return DESKTOP_USER_AGENT;
     }
-    
+
     // Default to mobile user agent
     return IPHONE_USER_AGENT;
   } catch (error) {
@@ -176,8 +291,9 @@ class ThemeColorCache {
   set(domain: string, color: string): void {
     // Remove oldest entry if cache is full
     if (this.cache.size >= this.maxSize && !this.cache.has(domain)) {
-      const oldestKey = Array.from(this.cache.entries())
-        .sort((a, b) => a[1].timestamp - b[1].timestamp)[0]?.[0];
+      const oldestKey = Array.from(this.cache.entries()).sort(
+        (a, b) => a[1].timestamp - b[1].timestamp
+      )[0]?.[0];
       if (oldestKey) {
         this.cache.delete(oldestKey);
       }
@@ -210,12 +326,12 @@ const themeColorCache = new ThemeColorCache();
 function getLuminance(color: string): number {
   let r: number, g: number, b: number;
 
-  if (color.startsWith('#')) {
-    const hex = color.replace('#', '');
+  if (color.startsWith("#")) {
+    const hex = color.replace("#", "");
     r = parseInt(hex.substr(0, 2), 16);
     g = parseInt(hex.substr(2, 2), 16);
     b = parseInt(hex.substr(4, 2), 16);
-  } else if (color.startsWith('rgb')) {
+  } else if (color.startsWith("rgb")) {
     const matches = color.match(/\d+/g);
     if (matches) {
       r = parseInt(matches[0]);
@@ -232,9 +348,12 @@ function getLuminance(color: string): number {
   const gsRGB = g / 255;
   const bsRGB = b / 255;
 
-  const rLinear = rsRGB <= 0.03928 ? rsRGB / 12.92 : Math.pow((rsRGB + 0.055) / 1.055, 2.4);
-  const gLinear = gsRGB <= 0.03928 ? gsRGB / 12.92 : Math.pow((gsRGB + 0.055) / 1.055, 2.4);
-  const bLinear = bsRGB <= 0.03928 ? bsRGB / 12.92 : Math.pow((bsRGB + 0.055) / 1.055, 2.4);
+  const rLinear =
+    rsRGB <= 0.03928 ? rsRGB / 12.92 : Math.pow((rsRGB + 0.055) / 1.055, 2.4);
+  const gLinear =
+    gsRGB <= 0.03928 ? gsRGB / 12.92 : Math.pow((gsRGB + 0.055) / 1.055, 2.4);
+  const bLinear =
+    bsRGB <= 0.03928 ? bsRGB / 12.92 : Math.pow((bsRGB + 0.055) / 1.055, 2.4);
 
   return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
 }
@@ -259,7 +378,7 @@ function getWindowDimensions() {
 // Create a new tab
 function createTab(url: string = "https://www.google.com"): Tab {
   const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   const webviewPreloadPath = path.join(__dirname, "webview-preload.js");
   const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
 
@@ -269,16 +388,27 @@ function createTab(url: string = "https://www.google.com"): Tab {
       contextIsolation: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      sandbox: true,
+      sandbox: false, // Widevine requires sandbox: false
       partition: "persist:main",
+      plugins: true, // Enable plugins for Widevine CDM
+      enablePreferredSizeMode: false,
       ...(hasWebviewPreload ? { preload: webviewPreloadPath } : {}),
     },
+  });
+  
+  // Enable Widevine CDM for this webContents
+  view.webContents.session.setPermissionRequestHandler((_webContents: any, permission: string, callback: (result: boolean) => void) => {
+    if (permission === 'media') {
+      callback(true); // Allow media permissions for DRM
+    } else {
+      callback(false);
+    }
   });
 
   // Set initial user agent based on URL
   const userAgent = getUserAgentForUrl(url);
   view.webContents.setUserAgent(userAgent);
-  
+
   const tab: Tab = {
     id: tabId,
     view,
@@ -288,7 +418,7 @@ function createTab(url: string = "https://www.google.com"): Tab {
 
   tabs.push(tab);
   setupWebContentsViewHandlers(view, tabId);
-  
+
   // Load URL
   const sanitized = sanitizeUrl(url);
   if (isValidUrl(sanitized)) {
@@ -300,15 +430,15 @@ function createTab(url: string = "https://www.google.com"): Tab {
 
 // Switch to a specific tab
 function switchToTab(tabId: string) {
-  const tab = tabs.find(t => t.id === tabId);
+  const tab = tabs.find((t) => t.id === tabId);
   if (!tab || !mainWindow) return;
 
   // Hide current active tab and capture its preview
   if (activeTabId && activeTabId !== tabId) {
-    const currentTab = tabs.find(t => t.id === activeTabId);
+    const currentTab = tabs.find((t) => t.id === activeTabId);
     if (currentTab) {
       // Capture preview before hiding
-      captureTabPreview(activeTabId).catch(err => {
+      captureTabPreview(activeTabId).catch((err) => {
         console.error("Failed to capture preview on tab switch:", err);
       });
       mainWindow.contentView.removeChildView(currentTab.view);
@@ -327,7 +457,7 @@ function switchToTab(tabId: string) {
   // Notify renderer about tab change
   mainWindow.webContents.send("tab-changed", {
     tabId,
-    tabs: tabs.map(t => ({
+    tabs: tabs.map((t) => ({
       id: t.id,
       title: t.title,
       url: t.url,
@@ -338,11 +468,11 @@ function switchToTab(tabId: string) {
 
 // Close a tab
 function closeTab(tabId: string) {
-  const tabIndex = tabs.findIndex(t => t.id === tabId);
+  const tabIndex = tabs.findIndex((t) => t.id === tabId);
   if (tabIndex === -1) return;
 
   const tab = tabs[tabIndex];
-  
+
   // Remove from window
   if (mainWindow) {
     mainWindow.contentView.removeChildView(tab.view);
@@ -371,7 +501,7 @@ function closeTab(tabId: string) {
     // Just notify renderer about tab list change
     if (mainWindow) {
       mainWindow.webContents.send("tabs-updated", {
-        tabs: tabs.map(t => ({
+        tabs: tabs.map((t) => ({
           id: t.id,
           title: t.title,
           url: t.url,
@@ -385,7 +515,7 @@ function closeTab(tabId: string) {
 
 // Capture tab preview
 async function captureTabPreview(tabId: string): Promise<void> {
-  const tab = tabs.find(t => t.id === tabId);
+  const tab = tabs.find((t) => t.id === tabId);
   if (!tab || tab.view.webContents.isDestroyed()) return;
 
   try {
@@ -396,15 +526,15 @@ async function captureTabPreview(tabId: string): Promise<void> {
       width: 800,
       height: 1200,
     });
-    
+
     // Convert to base64 data URL
     const dataUrl = image.toDataURL();
     tab.preview = dataUrl;
-    
+
     // Notify renderer about updated tabs
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("tabs-updated", {
-        tabs: tabs.map(t => ({
+        tabs: tabs.map((t) => ({
           id: t.id,
           title: t.title,
           url: t.url,
@@ -424,16 +554,16 @@ function updateWebContentsViewBounds() {
 
   const bounds = mainWindow.getBounds();
   const dimensions = getWindowDimensions();
-  
+
   // Calculate scale factor
   const scaleX = bounds.width / dimensions.width;
   const scaleY = bounds.height / dimensions.height;
 
   if (isLandscape) {
     const statusBarWidth = STATUS_BAR_WIDTH * scaleX;
-    const frameTop = FRAME_PADDING / 2 * scaleY;
-    const frameBottom = FRAME_PADDING / 2 * scaleY;
-    const frameRight = FRAME_PADDING / 2 * scaleX;
+    const frameTop = (FRAME_PADDING / 2) * scaleY;
+    const frameBottom = (FRAME_PADDING / 2) * scaleY;
+    const frameRight = (FRAME_PADDING / 2) * scaleX;
     const topBarHeight = TOP_BAR_HEIGHT * scaleY;
 
     webContentsView.setBounds({
@@ -444,17 +574,19 @@ function updateWebContentsViewBounds() {
     });
   } else {
     const statusBarHeight = STATUS_BAR_HEIGHT * scaleY;
-    const frameTop = FRAME_PADDING / 2 * scaleY;
-    const frameBottom = FRAME_PADDING / 2 * scaleY;
-    const frameLeft = FRAME_PADDING / 2 * scaleX;
-    const frameRight = FRAME_PADDING / 2 * scaleX;
+    const frameTop = (FRAME_PADDING / 2) * scaleY;
+    const frameBottom = (FRAME_PADDING / 2) * scaleY;
+    const frameLeft = (FRAME_PADDING / 2) * scaleX;
+    const frameRight = (FRAME_PADDING / 2) * scaleX;
     const topBarHeight = TOP_BAR_HEIGHT * scaleY;
 
     webContentsView.setBounds({
       x: Math.round(frameLeft),
       y: Math.round(topBarHeight + statusBarHeight + frameTop),
       width: Math.round(bounds.width - frameLeft - frameRight),
-      height: Math.round(bounds.height - topBarHeight - statusBarHeight - frameTop - frameBottom),
+      height: Math.round(
+        bounds.height - topBarHeight - statusBarHeight - frameTop - frameBottom
+      ),
     });
   }
 }
@@ -489,10 +621,10 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
           if (contents.isDevToolsOpened()) {
             contents.closeDevTools();
           }
-          
+
           // Open DevTools in detached mode first
           contents.openDevTools({ mode: "detach" });
-          
+
           // Then inspect the specific element after a short delay
           setTimeout(() => {
             contents.inspectElement(params.x, params.y);
@@ -531,7 +663,7 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
     // Create a new tab for the URL
     const newTab = createTab(url);
     switchToTab(newTab.id);
-    
+
     return { action: "deny" }; // We handle it ourselves
   });
 
@@ -571,10 +703,10 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
 
   contents.on("did-stop-loading", () => {
     mainWindow?.webContents.send("webcontents-did-stop-loading");
-    
+
     // Capture preview after page loads (with a small delay to ensure rendering)
     setTimeout(() => {
-      captureTabPreview(tabId).catch(err => {
+      captureTabPreview(tabId).catch((err) => {
         console.error("Failed to capture preview after loading:", err);
       });
     }, 500);
@@ -582,18 +714,18 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
 
   contents.on("did-navigate", (event: any, url: string) => {
     // Update tab info
-    const tab = tabs.find(t => t.id === tabId);
+    const tab = tabs.find((t) => t.id === tabId);
     if (tab) {
       tab.url = url;
       tab.title = contents.getTitle() || url;
     }
-    
+
     mainWindow?.webContents.send("webcontents-did-navigate", url);
-    
+
     // Notify about tab update if this is the active tab
     if (activeTabId === tabId && mainWindow) {
       mainWindow.webContents.send("tabs-updated", {
-        tabs: tabs.map(t => ({
+        tabs: tabs.map((t) => ({
           id: t.id,
           title: t.title,
           url: t.url,
@@ -606,18 +738,18 @@ function setupWebContentsViewHandlers(view: WebContentsView, tabId: string) {
 
   contents.on("did-navigate-in-page", (event: any, url: string) => {
     // Update tab info
-    const tab = tabs.find(t => t.id === tabId);
+    const tab = tabs.find((t) => t.id === tabId);
     if (tab) {
       tab.url = url;
       tab.title = contents.getTitle() || url;
     }
-    
+
     mainWindow?.webContents.send("webcontents-did-navigate-in-page", url);
-    
+
     // Notify about tab update if this is the active tab
     if (activeTabId === tabId && mainWindow) {
       mainWindow.webContents.send("tabs-updated", {
-        tabs: tabs.map(t => ({
+        tabs: tabs.map((t) => ({
           id: t.id,
           title: t.title,
           url: t.url,
@@ -705,7 +837,11 @@ function createWindow(): void {
     webContentsView.webContents.session.setPermissionRequestHandler(
       (webContents, permission, callback) => {
         // Only allow specific permissions
-        const allowedPermissions = ["clipboard-read", "clipboard-write"];
+        const allowedPermissions = [
+          "clipboard-read",
+          "clipboard-write",
+          "media", // Required for DRM content playback
+        ];
 
         if (allowedPermissions.includes(permission)) {
           logSecurityEvent(`Permission granted: ${permission}`);
@@ -896,7 +1032,7 @@ ipcMain.handle("toggle-orientation", () => {
       "orientation-changed",
       isLandscape ? "landscape" : "portrait"
     );
-    
+
     // Update status bar orientation in WebContentsView
     // updateStatusBar - now handled by React();
   }
@@ -918,9 +1054,9 @@ ipcMain.handle("tabs-get-all", (event) => {
     logSecurityEvent("Unauthorized IPC call to tabs-get-all");
     return { tabs: [], activeTabId: null };
   }
-  
+
   return {
-    tabs: tabs.map(t => ({
+    tabs: tabs.map((t) => ({
       id: t.id,
       title: t.title,
       url: t.url,
@@ -935,10 +1071,10 @@ ipcMain.handle("tabs-create", (event, url?: string) => {
     logSecurityEvent("Unauthorized IPC call to tabs-create");
     throw new Error("Unauthorized");
   }
-  
+
   const newTab = createTab(url);
   switchToTab(newTab.id);
-  
+
   return {
     id: newTab.id,
     title: newTab.title,
@@ -951,7 +1087,7 @@ ipcMain.handle("tabs-switch", (event, tabId: string) => {
     logSecurityEvent("Unauthorized IPC call to tabs-switch");
     throw new Error("Unauthorized");
   }
-  
+
   switchToTab(tabId);
 });
 
@@ -960,7 +1096,7 @@ ipcMain.handle("tabs-close", (event, tabId: string) => {
     logSecurityEvent("Unauthorized IPC call to tabs-close");
     throw new Error("Unauthorized");
   }
-  
+
   closeTab(tabId);
 });
 
@@ -969,24 +1105,24 @@ ipcMain.handle("tabs-close-all", (event) => {
     logSecurityEvent("Unauthorized IPC call to tabs-close-all");
     throw new Error("Unauthorized");
   }
-  
+
   // Close all tabs
   const tabsToClose = [...tabs]; // Create a copy to avoid mutation during iteration
-  tabsToClose.forEach(tab => {
+  tabsToClose.forEach((tab) => {
     // Remove from window
     if (mainWindow) {
       mainWindow.contentView.removeChildView(tab.view);
     }
-    
+
     // Destroy the view
     if (!tab.view.webContents.isDestroyed()) {
       tab.view.webContents.close();
     }
   });
-  
+
   // Clear tabs array
   tabs.length = 0;
-  
+
   // Create a new tab
   const newTab = createTab();
   switchToTab(newTab.id);
@@ -998,7 +1134,7 @@ ipcMain.handle("webcontents-set-visible", (event, visible: boolean) => {
     logSecurityEvent("Unauthorized IPC call to webcontents-set-visible");
     throw new Error("Unauthorized");
   }
-  
+
   if (webContentsView && mainWindow) {
     if (visible) {
       // Show the view by adding it back
@@ -1121,29 +1257,32 @@ ipcMain.handle("webcontents-get-theme-color", async (event) => {
 });
 
 // Receive theme color from webview preload script
-ipcMain.on("webview-theme-color-extracted", (event, data: { themeColor: string; domain: string }) => {
-  // Verify the sender is the webContentsView
-  if (webContentsView && event.sender === webContentsView.webContents) {
-    const { themeColor, domain } = data;
-    latestThemeColor = themeColor;
-    
-    // Cache the theme color for this domain
-    if (domain && themeColor) {
-      themeColorCache.set(domain, themeColor);
-    }
-    
-    // Update status bar in WebContentsView
-    // updateStatusBar - now handled by React(themeColor);
-    
-    // Forward to renderer (for backward compatibility)
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(
-        "webcontents-theme-color-updated",
-        themeColor
-      );
+ipcMain.on(
+  "webview-theme-color-extracted",
+  (event, data: { themeColor: string; domain: string }) => {
+    // Verify the sender is the webContentsView
+    if (webContentsView && event.sender === webContentsView.webContents) {
+      const { themeColor, domain } = data;
+      latestThemeColor = themeColor;
+
+      // Cache the theme color for this domain
+      if (domain && themeColor) {
+        themeColorCache.set(domain, themeColor);
+      }
+
+      // Update status bar in WebContentsView
+      // updateStatusBar - now handled by React(themeColor);
+
+      // Forward to renderer (for backward compatibility)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(
+          "webcontents-theme-color-updated",
+          themeColor
+        );
+      }
     }
   }
-});
+);
 
 // Handle navigation gestures from WebContentsView
 ipcMain.on("webview-navigate-back", (event) => {
@@ -1264,7 +1403,7 @@ function createTray(): void {
               "orientation-changed",
               isLandscape ? "landscape" : "portrait"
             );
-            
+
             // Update status bar orientation in WebContentsView
             // updateStatusBar - now handled by React();
           }
@@ -1296,8 +1435,12 @@ function createTray(): void {
 }
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setName("Aka Browser");
+
+  // Widevine CDM should be automatically available in castlabs electron-releases
+  // No need to wait for components - it's built-in and signed
+  console.log("[Widevine] Using castlabs electron-releases with built-in Widevine CDM");
 
   // Set dock icon for macOS
   if (process.platform === "darwin") {
