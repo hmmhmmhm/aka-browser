@@ -19,7 +19,6 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
 
   useEffect(() => {
     // Get initial tabs
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.tabs
       .getAll()
       .then((data: { tabs: Tab[]; activeTabId: string | null }) => {
@@ -28,7 +27,6 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
       });
 
     // Listen for tab changes
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupTabsUpdated = window.electronAPI?.tabs.onTabsUpdated(
       (data: { tabs: Tab[]; activeTabId: string | null }) => {
         setTabs(data.tabs);
@@ -42,7 +40,6 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
   }, []);
 
   const handleTabClick = (tabId: string) => {
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.tabs.switch(tabId);
     onClose();
   };
@@ -52,23 +49,19 @@ function TabOverview({ theme, orientation, onClose }: TabOverviewProps) {
 
     // If this is the last tab or the active tab, close the overview after closing the tab
     if (tabs.length === 1 || tabId === activeTabId) {
-      // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.tabs.close(tabId);
       onClose();
     } else {
-      // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.tabs.close(tabId);
     }
   };
 
   const handleNewTab = () => {
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.tabs.create();
     onClose();
   };
 
   const handleCloseAll = () => {
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.tabs.closeAll();
     onClose();
   };

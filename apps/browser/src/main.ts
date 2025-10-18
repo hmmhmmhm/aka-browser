@@ -11,7 +11,6 @@ import {
   WebContentsView,
 } from "electron";
 
-// @ts-ignore - castlabs specific API
 import { components } from "electron";
 
 import path from "path";
@@ -41,23 +40,18 @@ app.commandLine.appendSwitch("allow-running-insecure-content"); // For developme
 
 // Wait for Widevine CDM to be ready before creating windows
 app.on("ready", async () => {
-  // @ts-ignore - castlabs specific API
   if (typeof components !== "undefined") {
-    // @ts-ignore
     console.log("[Component] Initial status:", components.status());
-    // @ts-ignore
     console.log("[Component] Updates enabled:", components.updatesEnabled);
 
     console.log("[Component] Waiting for Widevine CDM...");
     const startTime = Date.now();
 
     try {
-      // @ts-ignore
       const results = await components.whenReady();
       const elapsed = Date.now() - startTime;
       console.log(`[Component] ✓ Ready after ${elapsed}ms`);
       console.log("[Component] Results:", results);
-      // @ts-ignore
       console.log("[Component] Final status:", components.status());
     } catch (error: any) {
       console.error("[Component] ✗ Failed:", error);
@@ -73,10 +67,8 @@ app.on("ready", async () => {
     );
   }
 
-  // @ts-ignore - castlabs specific API
-  if (typeof app.isEVSEnabled === "function") {
-    // @ts-ignore
-    console.log("[Widevine] EVS enabled:", app.isEVSEnabled());
+  if (typeof (app as any).isEVSEnabled === "function") {
+    console.log("[Widevine] EVS enabled:", (app as any).isEVSEnabled());
   }
 
   console.log("[Widevine] App path:", app.getAppPath());

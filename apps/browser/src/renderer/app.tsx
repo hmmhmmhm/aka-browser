@@ -4,7 +4,7 @@ import PhoneFrame from './components/phone-frame';
 import TabOverview from './components/tab-overview';
 
 function App() {
-  const [time, setTime] = useState('9:41');
+  const [_time, setTime] = useState('9:41');
   const [pageTitle, setPageTitle] = useState('Loading...');
   const [pageDomain, setPageDomain] = useState('www.google.com');
   const [themeColor, setThemeColor] = useState('#ffffff');
@@ -19,13 +19,11 @@ function App() {
   // Initialize and listen for system theme changes
   useEffect(() => {
     // Get initial theme
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.getSystemTheme().then((theme: 'light' | 'dark') => {
       setSystemTheme(theme);
     });
 
     // Listen for theme changes
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanup = window.electronAPI?.onThemeChanged((theme: 'light' | 'dark') => {
       setSystemTheme(theme);
     });
@@ -38,13 +36,11 @@ function App() {
   // Initialize and listen for orientation changes
   useEffect(() => {
     // Get initial orientation
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.getOrientation().then((orient: 'portrait' | 'landscape') => {
       setOrientation(orient);
     });
 
     // Listen for orientation changes
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanup = window.electronAPI?.onOrientationChanged((orient: 'portrait' | 'landscape') => {
       setOrientation(orient);
     });
@@ -57,13 +53,11 @@ function App() {
   // Track tab count
   useEffect(() => {
     // Get initial tab count
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.tabs.getAll().then((data: { tabs: any[]; activeTabId: string | null }) => {
       setTabCount(data.tabs.length);
     });
 
     // Listen for tab updates
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupTabChanged = window.electronAPI?.tabs.onTabChanged((data: { tabId: string; tabs: any[] }) => {
       setTabCount(data.tabs.length);
       
@@ -73,7 +67,6 @@ function App() {
         const statusBarHeight = 58;
         const statusBarWidth = 58;
         
-        // @ts-ignore - electronAPI is exposed via preload
         window.electronAPI?.webContents.setBounds({
           x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
           y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
@@ -83,7 +76,6 @@ function App() {
       }
     });
 
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupTabsUpdated = window.electronAPI?.tabs.onTabsUpdated((data: { tabs: any[]; activeTabId: string | null }) => {
       setTabCount(data.tabs.length);
     });
@@ -150,7 +142,6 @@ function App() {
 
     try {
       isExecutingJavaScriptRef.current = true;
-      // @ts-ignore - electronAPI is exposed via preload
       const themeColor = await window.electronAPI?.webContents.getThemeColor();
       
       isExecutingJavaScriptRef.current = false;
@@ -176,9 +167,7 @@ function App() {
   // Update page info
   const updatePageInfo = async () => {
     try {
-      // @ts-ignore - electronAPI is exposed via preload
       const url = await window.electronAPI?.webContents.getURL();
-      // @ts-ignore - electronAPI is exposed via preload
       const title = await window.electronAPI?.webContents.getTitle();
 
       setPageTitle(title || 'Untitled');
@@ -239,11 +228,9 @@ function App() {
   // Setup webview reload listener for Cmd+R shortcut
   useEffect(() => {
     const handleWebviewReload = () => {
-      // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.webContents.reload();
     };
 
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanup = window.electronAPI?.onWebviewReload(handleWebviewReload);
 
     return () => {
@@ -276,18 +263,14 @@ function App() {
       }, RESET_TIMEOUT) as ReturnType<typeof setTimeout>;
 
       if (!isNavigating) {
-        // @ts-ignore - electronAPI is exposed via preload
         const canGoBack = await window.electronAPI?.webContents.canGoBack();
-        // @ts-ignore - electronAPI is exposed via preload
         const canGoForward = await window.electronAPI?.webContents.canGoForward();
 
         if (accumulatedDeltaX < -SWIPE_THRESHOLD && canGoBack) {
-          // @ts-ignore - electronAPI is exposed via preload
           window.electronAPI?.webContents.goBack();
           isNavigating = true;
           accumulatedDeltaX = 0;
         } else if (accumulatedDeltaX > SWIPE_THRESHOLD && canGoForward) {
-          // @ts-ignore - electronAPI is exposed via preload
           window.electronAPI?.webContents.goForward();
           isNavigating = true;
           accumulatedDeltaX = 0;
@@ -334,7 +317,7 @@ function App() {
       startThemeColorMonitoring();
     };
 
-    const handleRenderProcessGone = (details: any) => {
+    const handleRenderProcessGone = (_details: any) => {
       stopThemeColorMonitoring();
       
       const now = Date.now();
@@ -352,7 +335,6 @@ function App() {
       
       if (crashCountRef.current < 3) {
         setTimeout(() => {
-          // @ts-ignore - electronAPI is exposed via preload
           window.electronAPI?.webContents.reload();
         }, 2000);
       }
@@ -362,19 +344,12 @@ function App() {
       stopThemeColorMonitoring();
     };
 
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupDomReady = window.electronAPI?.webContents.onDomReady(handleDomReady);
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupDidNavigate = window.electronAPI?.webContents.onDidNavigate(handleDidNavigate);
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupDidNavigateInPage = window.electronAPI?.webContents.onDidNavigateInPage(handleDidNavigateInPage);
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupDidStartLoading = window.electronAPI?.webContents.onDidStartLoading(handleDidStartLoading);
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupDidStopLoading = window.electronAPI?.webContents.onDidStopLoading(handleDidStopLoading);
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupRenderProcessGone = window.electronAPI?.webContents.onRenderProcessGone(handleRenderProcessGone);
-    // @ts-ignore - electronAPI is exposed via preload
     const cleanupDidFailLoad = window.electronAPI?.webContents.onDidFailLoad(handleDidFailLoad);
 
     // Initial page info fetch after a delay to ensure WebContentsView is ready
@@ -400,7 +375,6 @@ function App() {
     
     // If already has a valid protocol, use as-is
     if (finalUrl.startsWith('http://') || finalUrl.startsWith('https://') || finalUrl.startsWith('file://')) {
-      // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.webContents.loadURL(finalUrl);
       return;
     }
@@ -416,7 +390,6 @@ function App() {
       finalUrl = 'https://' + finalUrl;
     }
     
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.loadURL(finalUrl);
   };
 
@@ -430,7 +403,6 @@ function App() {
       const statusBarHeight = 58;
       const statusBarWidth = 58;
       
-      // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.webContents.setBounds({
         x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
         y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
@@ -440,7 +412,6 @@ function App() {
     }
     
     // Toggle WebContentsView visibility
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.setVisible(!newState);
   };
 
@@ -453,7 +424,6 @@ function App() {
       const statusBarHeight = 58;
       const statusBarWidth = 58;
       
-      // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.webContents.setBounds({
         x: Math.round(rect.x + (orientation === 'landscape' ? statusBarWidth : 0)),
         y: Math.round(rect.y + (orientation === 'landscape' ? 0 : statusBarHeight)),
@@ -463,12 +433,10 @@ function App() {
     }
     
     // Show WebContentsView when closing tab overview
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.setVisible(true);
   };
 
   const handleRefresh = () => {
-    // @ts-ignore - electronAPI is exposed via preload
     window.electronAPI?.webContents.reload();
   };
 

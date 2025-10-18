@@ -32,7 +32,6 @@ function PhoneFrame({
       const statusBarWidth = 58;
       
       // Web content positioned below/beside status bar
-      // @ts-ignore - electronAPI is exposed via preload
       window.electronAPI?.webContents.setBounds({
         x: Math.round(rect.x + (isLandscape ? statusBarWidth : 0)),
         y: Math.round(rect.y + (isLandscape ? 0 : statusBarHeight)),

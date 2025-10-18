@@ -1,18 +1,8 @@
-declare global {
-  interface Window {
-    electronAPI?: {
-      closeWindow: () => void;
-      minimizeWindow: () => void;
-      maximizeWindow: () => void;
-    };
-  }
-}
-
 interface WindowControlsProps {
   theme: 'light' | 'dark';
 }
 
-function WindowControls({ theme }: WindowControlsProps) {
+function WindowControls({ theme: _theme }: WindowControlsProps) {
   const handleClose = () => {
     window.electronAPI?.closeWindow();
   };
