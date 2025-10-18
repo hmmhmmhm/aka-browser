@@ -2,7 +2,7 @@
  * Application lifecycle management
  */
 
-import { app, BrowserWindow, globalShortcut, nativeImage, components } from "electron";
+import { app, BrowserWindow, nativeImage, components } from "electron";
 import path from "path";
 import { AppState } from "./types";
 import { WindowManager } from "./window-manager";
@@ -101,57 +101,7 @@ export class AppLifecycle {
     this.windowManager.createWindow();
     this.trayManager.createTray();
 
-    this.registerGlobalShortcuts();
     this.registerAppEvents();
-  }
-
-  /**
-   * Register global keyboard shortcuts
-   */
-  private registerGlobalShortcuts(): void {
-    // Cmd+W / Ctrl+W to hide window
-    globalShortcut.register("CommandOrControl+W", () => {
-      if (this.state.mainWindow && this.state.tray) {
-        this.state.mainWindow.hide();
-      }
-      return true;
-    });
-
-    // Cmd+R / Ctrl+R to reload
-    globalShortcut.register("CommandOrControl+R", () => {
-      if (this.state.mainWindow && this.state.mainWindow.webContents) {
-        this.state.mainWindow.webContents.send("webview-reload");
-      }
-      return true;
-    });
-
-    // F5 to reload
-    globalShortcut.register("F5", () => {
-      if (this.state.mainWindow && this.state.mainWindow.webContents) {
-        this.state.mainWindow.webContents.send("webview-reload");
-      }
-      return true;
-    });
-
-    // Cmd+Shift+R / Ctrl+Shift+R (hard reload)
-    globalShortcut.register("CommandOrControl+Shift+R", () => {
-      if (this.state.mainWindow && this.state.mainWindow.webContents) {
-        this.state.mainWindow.webContents.send("webview-reload");
-      }
-      return true;
-    });
-
-    // Cmd+Shift+I / Ctrl+Shift+I (DevTools)
-    globalShortcut.register("CommandOrControl+Shift+I", () => {
-      if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
-        if (this.state.webContentsView.webContents.isDevToolsOpened()) {
-          this.state.webContentsView.webContents.closeDevTools();
-        } else {
-          this.state.webContentsView.webContents.openDevTools({ mode: "detach" });
-        }
-      }
-      return true;
-    });
   }
 
   /**
@@ -173,10 +123,6 @@ export class AppLifecycle {
 
     app.on("before-quit", () => {
       this.trayManager.destroy();
-    });
-
-    app.on("will-quit", () => {
-      globalShortcut.unregisterAll();
     });
   }
 }

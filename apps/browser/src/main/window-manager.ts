@@ -169,6 +169,9 @@ export class WindowManager {
       }
     });
 
+    // Register local keyboard shortcuts (only work when window is focused)
+    this.registerLocalShortcuts();
+
     // Create initial tab
     const initialTab = this.tabManager.createTab("https://www.google.com");
     this.tabManager.switchToTab(initialTab.id);
@@ -240,6 +243,70 @@ export class WindowManager {
         width: newWidth,
         height: newHeight,
       });
+    });
+  }
+
+  /**
+   * Register local keyboard shortcuts (only active when window is focused)
+   */
+  private registerLocalShortcuts(): void {
+    if (!this.state.mainWindow) return;
+
+    this.state.mainWindow.webContents.on("before-input-event", (event, input) => {
+      // Only handle keyboard events
+      if (input.type !== "keyDown") return;
+
+      const isMac = process.platform === "darwin";
+      const modifierKey = isMac ? input.meta : input.control;
+
+      // Cmd+W / Ctrl+W to hide window
+      if (modifierKey && input.key.toLowerCase() === "w" && !input.shift && !input.alt) {
+        event.preventDefault();
+        if (this.state.mainWindow && this.state.tray) {
+          this.state.mainWindow.hide();
+        }
+        return;
+      }
+
+      // Cmd+R / Ctrl+R to reload
+      if (modifierKey && input.key.toLowerCase() === "r" && !input.shift && !input.alt) {
+        event.preventDefault();
+        if (this.state.mainWindow && this.state.mainWindow.webContents) {
+          this.state.mainWindow.webContents.send("webview-reload");
+        }
+        return;
+      }
+
+      // F5 to reload
+      if (input.key === "F5" && !modifierKey && !input.shift && !input.alt) {
+        event.preventDefault();
+        if (this.state.mainWindow && this.state.mainWindow.webContents) {
+          this.state.mainWindow.webContents.send("webview-reload");
+        }
+        return;
+      }
+
+      // Cmd+Shift+R / Ctrl+Shift+R (hard reload)
+      if (modifierKey && input.shift && input.key.toLowerCase() === "r" && !input.alt) {
+        event.preventDefault();
+        if (this.state.mainWindow && this.state.mainWindow.webContents) {
+          this.state.mainWindow.webContents.send("webview-reload");
+        }
+        return;
+      }
+
+      // Cmd+Shift+I / Ctrl+Shift+I (DevTools)
+      if (modifierKey && input.shift && input.key.toLowerCase() === "i" && !input.alt) {
+        event.preventDefault();
+        if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
+          if (this.state.webContentsView.webContents.isDevToolsOpened()) {
+            this.state.webContentsView.webContents.closeDevTools();
+          } else {
+            this.state.webContentsView.webContents.openDevTools({ mode: "detach" });
+          }
+        }
+        return;
+      }
     });
   }
 
