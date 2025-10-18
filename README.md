@@ -2,9 +2,9 @@
 
 # 📱 aka-browser
 
-### _A Beautiful, Lightweight Mobile Browser for Developers_
+### _A side browser for PC — always on top, always within reach._
 
-**Stop fighting with heavy simulators. Start browsing elegantly.**
+**Your companion browser for Netflix, Twitter(X), and everything in between.**
 
 <img src="https://i.imgur.com/YhQkOP5.png" alt="aka-browser screenshot" width="600"/>
 
@@ -21,25 +21,26 @@
 
 ## 🎯 Why aka-browser?
 
-Tired of Xcode Simulator eating your RAM and spinning up your fans just to preview a mobile website? **aka-browser** is your answer.
+**aka-browser** isn't here to replace your main browser—it's designed to work **alongside it**.
 
-Built for developers who need a **lightweight, beautiful, and functional** mobile browser without the bloat. Preview your responsive designs, test mobile interactions, and even watch Netflix—all in an elegant iPhone 15 Pro frame that won't slow down your MacBook.
+Think of it as your **always-on-top companion** for those moments when you need a second screen but don't have one. Watch Netflix with subtitles (PiP doesn't show them!), keep Twitter open while working, monitor a live stream, or follow a tutorial—all in a beautiful, compact window that stays right where you need it.
 
-### The Problem with Simulators
+### Perfect For
 
-- 🔥 **High CPU usage** → Laptop heating, fan noise, battery drain
-- 💾 **Memory hungry** → 2-4GB RAM just for a browser preview
-- 🐌 **Slow startup** → Wait 30+ seconds to launch
-- 🚫 **No DRM support** → Can't test streaming services
-- 🎪 **Feature overload** → 90% of features you'll never use
+- 🍿 **Watching Netflix with subtitles** → PiP mode loses subtitles, aka-browser keeps them
+- 🐦 **Following Twitter/X** → Keep your timeline visible while working
+- 📺 **Monitoring streams** → Twitch, YouTube Live always in view
+- 📖 **Following tutorials** → Step-by-step guides alongside your code
+- 💬 **Chat windows** → Discord, Slack, or any web chat always accessible
+- 🎵 **Music controls** → Spotify, YouTube Music at your fingertips
 
-### The aka-browser Solution
+### Why Not Just Use Your Main Browser?
 
-- ⚡ **Lightweight** → ~200MB RAM, instant startup
-- 🎨 **Beautiful UI** → Realistic iPhone 15 Pro frame with Dynamic Island
-- 🎬 **Netflix ready** → Full Widevine DRM support
-- 🛠️ **DevTools built-in** → Chrome DevTools at your fingertips
-- 🎯 **Developer-focused** → Only the features you actually need
+- 🪟 **Always on top** → Never gets buried under other windows
+- 📱 **Compact & elegant** → Beautiful iPhone frame that doesn't clutter your screen
+- 🎯 **Purpose-built** → Lightweight, fast, and distraction-free
+- 🎬 **DRM-ready** → Full Widevine support for streaming services
+- ⚡ **Instant access** → Lives in your menu bar, launches immediately
 
 ## ✨ Key Features
 
@@ -176,23 +177,30 @@ Production Build  →  ✅ Full DRM support
 
 ## 🎯 Who Is This For?
 
-Perfect for developers who:
+Perfect for **anyone** who:
 
-- ✅ Need a **lightweight mobile preview** tool
-- ✅ Want to **test responsive designs** without simulator overhead
-- ✅ Work in **cafes or public spaces** and want an elegant setup
-- ✅ Need to **test DRM content** (Netflix, streaming services)
-- ✅ Value **performance over feature bloat**
-- ✅ Prefer **instant startup** over waiting for Xcode
+- ✅ Wants to **watch Netflix with subtitles** while working (PiP doesn't show them!)
+- ✅ Needs a **second screen** but only has one monitor
+- ✅ Likes to **keep Twitter/social media visible** without tab-switching
+- ✅ Follows **live streams or tutorials** while multitasking
+- ✅ Values a **clean, elegant interface** over browser clutter
+- ✅ Wants **always-on-top** functionality with a beautiful design
 
-## 🛠️ Development Philosophy
+**Bonus for developers:**
 
-This project prioritizes **pragmatism over perfection**:
+- 🛠️ Built-in **Chrome DevTools** for testing mobile sites
+- 📱 **Lightweight alternative** to heavy iOS simulators
+- 🎨 Perfect for **responsive design** previews
 
-- 🎯 **Usability first** → Functional tool, not a full-featured browser
-- ⚡ **Performance matters** → Lightweight, fast, efficient
-- 🔐 **Security-first** → Comprehensive IPC validation
-- 🧩 **Core features only** → What developers actually need
+## 🛠️ Design Philosophy
+
+This project prioritizes **simplicity and elegance**:
+
+- 🎯 **Companion, not replacement** → Works alongside your main browser
+- ⚡ **Lightweight & fast** → Instant startup, minimal resource usage
+- 🎨 **Beautiful by default** → iPhone 15 Pro frame with attention to detail
+- 🪟 **Always accessible** → Menu bar integration, always-on-top support
+- 🧩 **Just enough features** → What you need, nothing you don't
 
 ## 📄 License
 
@@ -208,6 +216,6 @@ MIT License - feel free to use, modify, and distribute.
 
 **⭐ Star this repo if you find it useful!**
 
-Made with ❤️ for developers who deserve better tools
+Made with ❤️ for everyone who needs a better way to multitask
 
 </div>
