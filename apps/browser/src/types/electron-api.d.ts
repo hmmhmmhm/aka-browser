@@ -2,31 +2,31 @@
  * Type definitions for window.electronAPI exposed via preload script
  */
 
-interface Tab {
+export interface Tab {
   id: string;
   url: string;
   title: string;
   favicon?: string;
 }
 
-interface TabsData {
+export interface TabsData {
   tabs: Tab[];
   activeTabId: string | null;
 }
 
-interface TabChangedData {
+export interface TabChangedData {
   tabId: string;
   tabs: Tab[];
 }
 
-interface Bounds {
+export interface Bounds {
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
-interface ElectronAPI {
+export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
   minimizeWindow: () => void;
@@ -86,6 +86,8 @@ interface ElectronAPI {
   };
 }
 
-interface Window {
-  electronAPI?: ElectronAPI;
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
 }

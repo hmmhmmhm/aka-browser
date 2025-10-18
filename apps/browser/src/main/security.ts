@@ -2,7 +2,13 @@
  * Security utilities for URL validation and sanitization
  */
 
-import { ALLOWED_PROTOCOLS, DANGEROUS_PROTOCOLS, BLOCKED_DOMAINS } from "./constants";
+import { 
+  ALLOWED_PROTOCOLS, 
+  DANGEROUS_PROTOCOLS, 
+  BLOCKED_DOMAINS,
+  IPHONE_USER_AGENT,
+  DESKTOP_USER_AGENT
+} from "./constants";
 
 /**
  * Log security events
@@ -99,8 +105,6 @@ export function sanitizeUrl(urlString: string): string {
  * Determine user agent based on URL
  */
 export function getUserAgentForUrl(url: string): string {
-  const { IPHONE_USER_AGENT, DESKTOP_USER_AGENT } = require("./constants");
-  
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.toLowerCase();
