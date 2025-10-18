@@ -156,7 +156,7 @@ aka-browser supports **Widevine DRM** out of the box:
 
 ```
 Development Mode  →  ❌ Netflix won't work
-Production Build  →  ✅ Full DRM support
+Production Build  →  ✅ Full DRM support (L3 level, software-based without TEE)
 ```
 
 ### How It Works
