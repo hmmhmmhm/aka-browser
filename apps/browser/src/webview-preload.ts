@@ -92,46 +92,92 @@ function setupThemeColorMonitoring() {
   }
 }
 
-// Inject CSS to mask bottom corners (concave/inset curve)
+// Track current orientation
+let currentOrientation: "portrait" | "landscape" = "portrait";
+
+// Inject CSS to mask corners (concave/inset curve) based on orientation
 function injectCornerMask() {
-  // Check if already injected to avoid duplicates
-  if (document.getElementById("webview-corner-mask")) {
-    return;
+  // Remove existing style if present
+  const existingStyle = document.getElementById("webview-corner-mask");
+  if (existingStyle) {
+    existingStyle.remove();
   }
 
   const style = document.createElement("style");
   style.id = "webview-corner-mask";
-  style.textContent = `
-    /* Bottom corner masks with inset curve to match device frame */
-    body::before,
-    body::after {
-      content: '' !important;
-      position: fixed !important;
-      bottom: -1px !important;
-      width: 48px !important;
-      height: 48px !important;
-      pointer-events: none !important;
-      z-index: 2147483647 !important; /* Maximum z-index */
-    }
+  
+  if (currentOrientation === "portrait") {
+    // Portrait mode: bottom-left and bottom-right corners
+    style.textContent = `
+      /* Bottom corner masks with inset curve to match device frame */
+      body::before,
+      body::after {
+        content: '' !important;
+        position: fixed !important;
+        bottom: -1px !important;
+        width: 48px !important;
+        height: 48px !important;
+        pointer-events: none !important;
+        z-index: 2147483647 !important; /* Maximum z-index */
+      }
 
-    body::before {
-      left: -1px !important;
-      background:
-        radial-gradient(circle at 44px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-        radial-gradient(circle at 41px 0px, transparent 34px, #2b2c2c 30px) !important;
-      background-position: -11px 14px !important;
-      background-repeat: no-repeat !important;
-    }
+      body::before {
+        left: -1px !important;
+        background:
+          radial-gradient(circle at 44px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
+          radial-gradient(circle at 41px 0px, transparent 34px, #2b2c2c 30px) !important;
+        background-position: -11px 14px !important;
+        background-repeat: no-repeat !important;
+      }
 
-    body::after {
-      right: -1px !important;
-      background:
-        radial-gradient(circle at 2px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-        radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px) !important;
-      background-position: 13px 14px !important;
-      background-repeat: no-repeat !important;
-    }
-  `;
+      body::after {
+        right: -1px !important;
+        background:
+          radial-gradient(circle at 2px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
+          radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px) !important;
+        background-position: 13px 14px !important;
+        background-repeat: no-repeat !important;
+      }
+    `;
+  } else {
+    // Landscape mode: top-right and bottom-right corners
+    style.textContent = `
+      /* Corner masks with inset curve to match device frame in landscape */
+      body::before {
+        content: '' !important;
+        position: fixed !important;
+        top: -1px !important;
+        left: auto !important;
+        right: -1px !important;
+        width: 48px !important;
+        height: 48px !important;
+        pointer-events: none !important;
+        z-index: 2147483647 !important; /* Maximum z-index */
+        background:
+          radial-gradient(circle at 2px 44px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
+          radial-gradient(circle at 0px 47px, transparent 34px, #2b2c2c 30px) !important;
+        background-position: 13px -11px !important;
+        background-repeat: no-repeat !important;
+      }
+
+      body::after {
+        content: '' !important;
+        position: fixed !important;
+        bottom: -1px !important;
+        left: auto !important;
+        right: -1px !important;
+        width: 48px !important;
+        height: 48px !important;
+        pointer-events: none !important;
+        z-index: 2147483647 !important; /* Maximum z-index */
+        background:
+          radial-gradient(circle at 2px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
+          radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px) !important;
+        background-position: 13px 14px !important;
+        background-repeat: no-repeat !important;
+      }
+    `;
+  }
 
   // Try to insert immediately if head exists
   if (document.head) {
@@ -158,7 +204,22 @@ function injectCornerMask() {
   }
 }
 
-// Inject corner mask immediately - this runs synchronously as soon as preload loads
+// Listen for orientation changes from main process
+ipcRenderer.on("orientation-changed", (_event, orientation: "portrait" | "landscape") => {
+  currentOrientation = orientation;
+  injectCornerMask();
+});
+
+// Request initial orientation from main process
+ipcRenderer.invoke("get-orientation").then((orientation: "portrait" | "landscape") => {
+  currentOrientation = orientation;
+  injectCornerMask();
+}).catch(() => {
+  // Fallback to portrait if request fails
+  injectCornerMask();
+});
+
+// Inject corner mask immediately with default orientation
 injectCornerMask();
 
 // Wait for DOM to be ready for theme monitoring

@@ -237,6 +237,12 @@ export class TabManager {
   private setupWebContentsViewHandlers(view: WebContentsView, tabId: string): void {
     const contents = view.webContents;
 
+    // Send initial orientation to the new webview when DOM is ready
+    contents.on("dom-ready", () => {
+      const orientation = this.state.isLandscape ? "landscape" : "portrait";
+      contents.send("orientation-changed", orientation);
+    });
+
     // Enable context menu (right-click)
     contents.on("context-menu", (event: any, params: any) => {
       const menu = Menu.buildFromTemplate([

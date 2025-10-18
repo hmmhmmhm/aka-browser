@@ -109,11 +109,17 @@ export class WindowManager {
 
       this.state.mainWindow.setBounds(newBounds);
 
+      const orientation = this.state.isLandscape ? "landscape" : "portrait";
+
       // Notify renderer about orientation change
-      this.state.mainWindow.webContents.send(
-        "orientation-changed",
-        this.state.isLandscape ? "landscape" : "portrait"
-      );
+      this.state.mainWindow.webContents.send("orientation-changed", orientation);
+
+      // Notify all WebContentsViews (tabs) about orientation change
+      this.state.tabs.forEach((tab) => {
+        if (!tab.view.webContents.isDestroyed()) {
+          tab.view.webContents.send("orientation-changed", orientation);
+        }
+      });
     }
 
     return this.state.isLandscape ? "landscape" : "portrait";
