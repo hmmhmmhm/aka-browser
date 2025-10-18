@@ -37,7 +37,7 @@ function notifyThemeColor() {
       // Fallback if hostname is not accessible
       domain = "";
     }
-    
+
     ipcRenderer.send("webview-theme-color-extracted", {
       themeColor,
       domain,
@@ -254,6 +254,3 @@ function setupNavigationGestures() {
 
 // Setup gesture detection immediately
 setupNavigationGestures();
-
-// Status bar is now a React component in the main renderer
-// This preload script handles theme color extraction, corner masking, and navigation gestures
