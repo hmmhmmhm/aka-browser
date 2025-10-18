@@ -18,72 +18,69 @@ import path from "path";
 import fs from "fs";
 
 // Widevine CDM configuration for castlabs electron-releases
-console.log('[Widevine] Electron app path:', app.getAppPath());
-console.log('[Widevine] Electron version:', process.versions.electron);
-console.log('[Widevine] Process versions:', JSON.stringify(process.versions, null, 2));
+console.log("[Widevine] Electron app path:", app.getAppPath());
+console.log("[Widevine] Electron version:", process.versions.electron);
+console.log(
+  "[Widevine] Process versions:",
+  JSON.stringify(process.versions, null, 2)
+);
 
 // NOTE: Do NOT manually set widevine-cdm-path or widevine-cdm-version
 // castlabs v16+ uses Component Updater to automatically download and install Widevine CDM
 // Manual CDM bundling is not recommended and has legal implications
-console.log('[Widevine] Using Component Updater for automatic CDM installation');
+console.log(
+  "[Widevine] Using Component Updater for automatic CDM installation"
+);
 
 // Enable Widevine features and DRM
-app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision');
+app.commandLine.appendSwitch("enable-features", "PlatformEncryptedDolbyVision");
 
 // Additional flags for Widevine CDM
-app.commandLine.appendSwitch('ignore-certificate-errors'); // For development/testing
-app.commandLine.appendSwitch('allow-running-insecure-content'); // For development/testing
+app.commandLine.appendSwitch("ignore-certificate-errors"); // For development/testing
+app.commandLine.appendSwitch("allow-running-insecure-content"); // For development/testing
 
-// CRITICAL: Enable Chromium verbose logging for debugging
-app.commandLine.appendSwitch('enable-logging');
-app.commandLine.appendSwitch('v', '1'); // Verbosity level 1
-app.commandLine.appendSwitch('vmodule', 'widevine*=3,cdm*=3,drm*=3,eme*=3,component*=3'); // Detailed logging for specific modules
-
-console.log('[Widevine] Command line switches configured');
-console.log('[Widevine] Chromium verbose logging enabled');
-
-// Verify Widevine plugin on startup
-app.on('ready', async () => {
-  console.log('[Component] App ready');
-  
+// Wait for Widevine CDM to be ready before creating windows
+app.on("ready", async () => {
   // @ts-ignore - castlabs specific API
-  if (typeof components !== 'undefined') {
+  if (typeof components !== "undefined") {
     // @ts-ignore
-    console.log('[Component] Initial status:', components.status());
+    console.log("[Component] Initial status:", components.status());
     // @ts-ignore
-    console.log('[Component] Updates enabled:', components.updatesEnabled);
-    
-    console.log('[Component] Waiting for Widevine CDM...');
+    console.log("[Component] Updates enabled:", components.updatesEnabled);
+
+    console.log("[Component] Waiting for Widevine CDM...");
     const startTime = Date.now();
-    
+
     try {
       // @ts-ignore
       const results = await components.whenReady();
       const elapsed = Date.now() - startTime;
       console.log(`[Component] ✓ Ready after ${elapsed}ms`);
-      console.log('[Component] Results:', results);
+      console.log("[Component] Results:", results);
       // @ts-ignore
-      console.log('[Component] Final status:', components.status());
+      console.log("[Component] Final status:", components.status());
     } catch (error: any) {
-      console.error('[Component] ✗ Failed:', error);
+      console.error("[Component] ✗ Failed:", error);
       if (error.errors) {
         error.errors.forEach((err: any, i: number) => {
-          console.error(`[Component] Error ${i+1}:`, err);
+          console.error(`[Component] Error ${i + 1}:`, err);
         });
       }
     }
   } else {
-    console.warn('[Component] components API not available - not using castlabs electron?');
+    console.warn(
+      "[Component] components API not available - not using castlabs electron?"
+    );
   }
-  
+
   // @ts-ignore - castlabs specific API
-  if (typeof app.isEVSEnabled === 'function') {
+  if (typeof app.isEVSEnabled === "function") {
     // @ts-ignore
-    console.log('[Widevine] EVS enabled:', app.isEVSEnabled());
+    console.log("[Widevine] EVS enabled:", app.isEVSEnabled());
   }
-  
-  console.log('[Widevine] App path:', app.getAppPath());
-  console.log('[Widevine] __dirname:', __dirname);
+
+  console.log("[Widevine] App path:", app.getAppPath());
+  console.log("[Widevine] __dirname:", __dirname);
 });
 
 // URL validation and security
@@ -358,15 +355,21 @@ function createTab(url: string = "https://www.google.com"): Tab {
       ...(hasWebviewPreload ? { preload: webviewPreloadPath } : {}),
     },
   });
-  
+
   // Enable Widevine CDM for this webContents
-  view.webContents.session.setPermissionRequestHandler((_webContents: any, permission: string, callback: (result: boolean) => void) => {
-    if (permission === 'media') {
-      callback(true); // Allow media permissions for DRM
-    } else {
-      callback(false);
+  view.webContents.session.setPermissionRequestHandler(
+    (
+      _webContents: any,
+      permission: string,
+      callback: (result: boolean) => void
+    ) => {
+      if (permission === "media") {
+        callback(true); // Allow media permissions for DRM
+      } else {
+        callback(false);
+      }
     }
-  });
+  );
 
   // Set initial user agent based on URL
   const userAgent = getUserAgentForUrl(url);
@@ -1403,7 +1406,9 @@ app.whenReady().then(async () => {
 
   // Widevine CDM should be automatically available in castlabs electron-releases
   // No need to wait for components - it's built-in and signed
-  console.log("[Widevine] Using castlabs electron-releases with built-in Widevine CDM");
+  console.log(
+    "[Widevine] Using castlabs electron-releases with built-in Widevine CDM"
+  );
 
   // Set dock icon for macOS
   if (process.platform === "darwin") {

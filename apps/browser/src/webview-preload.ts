@@ -37,7 +37,7 @@ function notifyThemeColor() {
       // Fallback if hostname is not accessible
       domain = "";
     }
-    
+
     ipcRenderer.send("webview-theme-color-extracted", {
       themeColor,
       domain,
@@ -254,57 +254,3 @@ function setupNavigationGestures() {
 
 // Setup gesture detection immediately
 setupNavigationGestures();
-
-// Widevine CDM verification
-function checkWidevineCdm() {
-  console.log("[Widevine] Checking Widevine CDM availability...");
-  
-  // Check if navigator.plugins is available
-  // @ts-ignore - plugins exists in browser context
-  if (navigator.plugins) {
-    console.log(
-      "[Widevine] Available plugins:",
-      // @ts-ignore
-      Array.from(navigator.plugins).map((p: any) => p.name)
-    );
-  }
-  
-  // Check for Widevine support using EME API
-  // @ts-ignore - requestMediaKeySystemAccess exists in browser context
-  if (navigator.requestMediaKeySystemAccess) {
-    // @ts-ignore
-    navigator
-      .requestMediaKeySystemAccess("com.widevine.alpha", [
-        {
-          initDataTypes: ["cenc"],
-          videoCapabilities: [
-            {
-              contentType: 'video/mp4; codecs="avc1.42E01E"',
-            },
-          ],
-        },
-      ])
-      .then((keySystemAccess) => {
-        console.log("[Widevine] ✓ Widevine CDM is available and working!");
-        console.log("[Widevine] Key system:", keySystemAccess.keySystem);
-      })
-      .catch((error) => {
-        console.error("[Widevine] ✗ Widevine CDM is NOT available:", error);
-        console.error(
-          "[Widevine] DRM content will not play. Please ensure Widevine is properly configured."
-        );
-      });
-  } else {
-    console.error(
-      "[Widevine] ✗ EME API (requestMediaKeySystemAccess) is not available"
-    );
-  }
-}
-
-// Check Widevine when page loads
-window.addEventListener("load", () => {
-  setTimeout(checkWidevineCdm, 500);
-});
-
-// Status bar is now a React component in the main renderer
-// This preload script handles theme color extraction, corner masking, and navigation gestures
