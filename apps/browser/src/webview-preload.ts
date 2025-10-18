@@ -95,111 +95,228 @@ function setupThemeColorMonitoring() {
 // Track current orientation
 let currentOrientation: "portrait" | "landscape" = "portrait";
 
-// Inject CSS to mask corners (concave/inset curve) based on orientation
+// Shadow DOM container reference for cleanup
+let shadowContainer: HTMLElement | null = null;
+
+// MutationObserver reference for cleanup
+let maskProtectionObserver: MutationObserver | null = null;
+
+// Inject corner masks using Shadow DOM for complete style isolation
 function injectCornerMask() {
-  // Remove existing style if present
-  const existingStyle = document.getElementById("webview-corner-mask");
-  if (existingStyle) {
-    existingStyle.remove();
+  // Disconnect existing observer
+  if (maskProtectionObserver) {
+    maskProtectionObserver.disconnect();
+    maskProtectionObserver = null;
   }
 
+  // Remove existing container if present (check both body and html)
+  const existingContainers = document.querySelectorAll("#webview-corner-mask-container");
+  existingContainers.forEach(container => {
+    if (container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  });
+  
+  shadowContainer = null;
+
+  // Create container element
+  const container = document.createElement("div");
+  container.id = "webview-corner-mask-container";
+  container.setAttribute("data-webview-mask", "true");
+  
+  // Container styles (applied to light DOM)
+  container.style.cssText = `
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    pointer-events: none !important;
+    z-index: 2147483647 !important;
+    overflow: hidden !important;
+  `;
+
+  // Create Shadow DOM for complete style isolation
+  const shadow = container.attachShadow({ mode: "closed" });
+
+  // Create style element inside Shadow DOM
   const style = document.createElement("style");
-  style.id = "webview-corner-mask";
   
   if (currentOrientation === "portrait") {
     // Portrait mode: bottom-left and bottom-right corners
     style.textContent = `
-      /* Bottom corner masks with inset curve to match device frame */
-      body::before,
-      body::after {
-        content: '' !important;
-        position: fixed !important;
-        bottom: -1px !important;
-        width: 48px !important;
-        height: 48px !important;
-        pointer-events: none !important;
-        z-index: 2147483647 !important; /* Maximum z-index */
+      :host {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
       }
 
-      body::before {
-        left: -1px !important;
+      .corner-mask {
+        position: absolute;
+        width: 48px;
+        height: 48px;
+        pointer-events: none;
+      }
+
+      .corner-mask-bottom-left {
+        bottom: -1px;
+        left: -1px;
         background:
           radial-gradient(circle at 44px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-          radial-gradient(circle at 41px 0px, transparent 34px, #2b2c2c 30px) !important;
-        background-position: -11px 14px !important;
-        background-repeat: no-repeat !important;
+          radial-gradient(circle at 41px 0px, transparent 34px, #2b2c2c 30px);
+        background-position: -11px 14px;
+        background-repeat: no-repeat;
       }
 
-      body::after {
-        right: -1px !important;
+      .corner-mask-bottom-right {
+        bottom: -1px;
+        right: -1px;
         background:
           radial-gradient(circle at 2px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-          radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px) !important;
-        background-position: 13px 14px !important;
-        background-repeat: no-repeat !important;
+          radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px);
+        background-position: 13px 14px;
+        background-repeat: no-repeat;
       }
     `;
+
+    // Create mask elements
+    const maskLeft = document.createElement("div");
+    maskLeft.className = "corner-mask corner-mask-bottom-left";
+    
+    const maskRight = document.createElement("div");
+    maskRight.className = "corner-mask corner-mask-bottom-right";
+
+    shadow.appendChild(style);
+    shadow.appendChild(maskLeft);
+    shadow.appendChild(maskRight);
   } else {
     // Landscape mode: top-right and bottom-right corners
     style.textContent = `
-      /* Corner masks with inset curve to match device frame in landscape */
-      body::before {
-        content: '' !important;
-        position: fixed !important;
-        top: -1px !important;
-        left: auto !important;
-        right: -1px !important;
-        width: 48px !important;
-        height: 48px !important;
-        pointer-events: none !important;
-        z-index: 2147483647 !important; /* Maximum z-index */
+      :host {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .corner-mask {
+        position: absolute;
+        width: 48px;
+        height: 48px;
+        pointer-events: none;
+      }
+
+      .corner-mask-top-right {
+        top: -1px;
+        right: -1px;
         background:
           radial-gradient(circle at 2px 44px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-          radial-gradient(circle at 0px 47px, transparent 34px, #2b2c2c 30px) !important;
-        background-position: 13px -11px !important;
-        background-repeat: no-repeat !important;
+          radial-gradient(circle at 0px 47px, transparent 34px, #2b2c2c 30px);
+        background-position: 13px -11px;
+        background-repeat: no-repeat;
       }
 
-      body::after {
-        content: '' !important;
-        position: fixed !important;
-        bottom: -1px !important;
-        left: auto !important;
-        right: -1px !important;
-        width: 48px !important;
-        height: 48px !important;
-        pointer-events: none !important;
-        z-index: 2147483647 !important; /* Maximum z-index */
+      .corner-mask-bottom-right {
+        bottom: -1px;
+        right: -1px;
         background:
           radial-gradient(circle at 2px 1px, transparent 32px, #000100 32px, #000100 38px, transparent 40px),
-          radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px) !important;
-        background-position: 13px 14px !important;
-        background-repeat: no-repeat !important;
+          radial-gradient(circle at 0px 1px, transparent 40px, #2b2c2c 40px);
+        background-position: 13px 14px;
+        background-repeat: no-repeat;
       }
     `;
+
+    // Create mask elements
+    const maskTopRight = document.createElement("div");
+    maskTopRight.className = "corner-mask corner-mask-top-right";
+    
+    const maskBottomRight = document.createElement("div");
+    maskBottomRight.className = "corner-mask corner-mask-bottom-right";
+
+    shadow.appendChild(style);
+    shadow.appendChild(maskTopRight);
+    shadow.appendChild(maskBottomRight);
   }
 
-  // Try to insert immediately if head exists
-  if (document.head) {
-    document.head.appendChild(style);
-  } else if (document.documentElement) {
-    // If head doesn't exist, insert directly into documentElement
-    document.documentElement.appendChild(style);
-  } else {
-    // Last resort: wait for documentElement
-    const observer = new MutationObserver(() => {
-      if (document.documentElement) {
-        if (document.head) {
-          document.head.appendChild(style);
-        } else {
-          document.documentElement.appendChild(style);
+  // Store reference for cleanup
+  shadowContainer = container;
+
+  // Insert into DOM
+  const insertContainer = () => {
+    if (document.body) {
+      document.body.appendChild(container);
+    } else if (document.documentElement) {
+      document.documentElement.appendChild(container);
+    } else {
+      // Wait for document to be ready
+      const observer = new MutationObserver(() => {
+        if (document.body) {
+          document.body.appendChild(container);
+          observer.disconnect();
+        } else if (document.documentElement) {
+          document.documentElement.appendChild(container);
+          observer.disconnect();
         }
-        observer.disconnect();
+      });
+      observer.observe(document, {
+        childList: true,
+        subtree: true,
+      });
+    }
+  };
+
+  insertContainer();
+
+  // Setup MutationObserver to restore if removed by page scripts
+  setupMaskProtection();
+}
+
+// Protect corner mask from being removed by page scripts
+function setupMaskProtection() {
+  // Don't create duplicate observers
+  if (maskProtectionObserver) {
+    maskProtectionObserver.disconnect();
+  }
+
+  // Debounce restoration to avoid infinite loops
+  let restorationTimeout: NodeJS.Timeout | null = null;
+  
+  maskProtectionObserver = new MutationObserver((mutations) => {
+    // Check if our container was removed
+    const containerExists = document.getElementById("webview-corner-mask-container");
+    
+    if (!containerExists && shadowContainer) {
+      // Container was removed, schedule restoration
+      if (restorationTimeout) {
+        clearTimeout(restorationTimeout);
       }
-    });
-    observer.observe(document, {
+      
+      restorationTimeout = setTimeout(() => {
+        // Re-inject if still missing
+        if (!document.getElementById("webview-corner-mask-container")) {
+          injectCornerMask();
+        }
+      }, 100);
+    }
+  });
+
+  // Observe both body and documentElement for removals
+  if (document.body) {
+    maskProtectionObserver.observe(document.body, {
       childList: true,
-      subtree: true,
+      subtree: false, // Only watch direct children
+    });
+  }
+  if (document.documentElement) {
+    maskProtectionObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: false, // Only watch direct children
     });
   }
 }
