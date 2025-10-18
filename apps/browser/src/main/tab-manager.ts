@@ -24,7 +24,7 @@ export class TabManager {
   createTab(url: string = "https://www.google.com"): Tab {
     const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    const webviewPreloadPath = path.join(__dirname, "webview-preload.js");
+    const webviewPreloadPath = path.join(__dirname, "..", "webview-preload.js");
     const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
 
     const view = new WebContentsView({

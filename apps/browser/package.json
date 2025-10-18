@@ -2,7 +2,7 @@
   "name": "@aka-browser/browser",
   "version": "0.1.0",
   "description": "A lightweight, elegant web browser for developers featuring an iPhone frame interface",
-  "main": "dist/main.js",
+  "main": "dist/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm run build:main:watch\" \"npm run build:webview:watch\" \"npm run dev:renderer\" \"npm run start\"",
     "dev:renderer": "vite",
