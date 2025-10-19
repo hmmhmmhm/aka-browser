@@ -15,6 +15,59 @@ console.log("[Preload] ✓ Loaded - Fullscreen API polyfill active");
 let isFullscreenActive = false;
 let fullscreenElement: Element | null = null;
 
+// Helper function to apply object-fit style to video elements
+function applyVideoFitStyle(fitValue: string) {
+  const videos = document.querySelectorAll('video');
+  videos.forEach((video) => {
+    if (fitValue) {
+      video.style.objectFit = fitValue;
+    } else {
+      video.style.objectFit = '';
+    }
+  });
+  
+  // Also observe for dynamically added videos
+  if (fitValue === 'contain') {
+    startVideoObserver();
+  } else {
+    stopVideoObserver();
+  }
+}
+
+// MutationObserver to handle dynamically added videos
+let videoObserver: MutationObserver | null = null;
+
+function startVideoObserver() {
+  if (videoObserver) return;
+  
+  videoObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node instanceof HTMLVideoElement) {
+          node.style.objectFit = 'contain';
+        } else if (node instanceof Element) {
+          const videos = node.querySelectorAll('video');
+          videos.forEach((video) => {
+            (video as HTMLVideoElement).style.objectFit = 'contain';
+          });
+        }
+      });
+    });
+  });
+  
+  videoObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function stopVideoObserver() {
+  if (videoObserver) {
+    videoObserver.disconnect();
+    videoObserver = null;
+  }
+}
+
 // Listen for fullscreen state from main process
 ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
   const wasFullscreen = isFullscreenActive;
@@ -30,6 +83,9 @@ ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
     // Entering fullscreen
     fullscreenElement = document.documentElement; // Assume whole document
     
+    // Apply object-fit: contain to all video elements to prevent cropping
+    applyVideoFitStyle('contain');
+    
     // Force a resize event to make sure the page knows about the new size
     window.dispatchEvent(new Event('resize'));
     
@@ -41,6 +97,9 @@ ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
   } else if (!state && wasFullscreen) {
     // Exiting fullscreen
     fullscreenElement = null;
+    
+    // Restore original object-fit style
+    applyVideoFitStyle('');
     
     // Force a resize event
     window.dispatchEvent(new Event('resize'));
