@@ -73,12 +73,6 @@ ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
   const wasFullscreen = isFullscreenActive;
   isFullscreenActive = state;
   
-  const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-  console.log(`[Preload][${timestamp}] Fullscreen state changed: ${state}`);
-  console.log(`[Preload][${timestamp}] Window size: ${window.innerWidth}x${window.innerHeight}`);
-  console.log(`[Preload][${timestamp}] Screen size (overridden): ${window.screen.width}x${window.screen.height}`);
-  console.log(`[Preload][${timestamp}] Original screen size: ${originalScreenWidth}x${originalScreenHeight}`);
-  
   if (state && !wasFullscreen) {
     // Entering fullscreen
     fullscreenElement = document.documentElement; // Assume whole document
@@ -91,9 +85,6 @@ ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
     
     const event = new Event("fullscreenchange", { bubbles: true });
     document.dispatchEvent(event);
-    
-    const ts1 = new Date().toISOString().split('T')[1].slice(0, -1);
-    console.log(`[Preload][${ts1}] ✅ Entered fullscreen mode`);
   } else if (!state && wasFullscreen) {
     // Exiting fullscreen
     fullscreenElement = null;
@@ -106,9 +97,6 @@ ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
     
     const event = new Event("fullscreenchange", { bubbles: true });
     document.dispatchEvent(event);
-    
-    const ts2 = new Date().toISOString().split('T')[1].slice(0, -1);
-    console.log(`[Preload][${ts2}] ✅ Exited fullscreen mode`);
   }
 });
 

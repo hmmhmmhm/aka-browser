@@ -369,17 +369,6 @@ export class TabManager {
         // Determine orientation based on actual window dimensions (not cached state)
         const isCurrentlyLandscape = windowBounds.width > windowBounds.height;
 
-        const ts = new Date().toISOString().split("T")[1].slice(0, -1);
-        console.log(
-          `[Fullscreen][${ts}] Window bounds: ${windowBounds.width}x${windowBounds.height}`
-        );
-        console.log(
-          `[Fullscreen][${ts}] Orientation: ${isCurrentlyLandscape ? "LANDSCAPE" : "PORTRAIT"}`
-        );
-        console.log(
-          `[Fullscreen][${ts}] Gaps - Vertical: ${fullscreenGapVertical}px, Horizontal: ${fullscreenGapHorizontal}px`
-        );
-
         if (isCurrentlyLandscape) {
           // Landscape: gap on left and right to avoid rounded corners
           // Note: We ignore status bar space in fullscreen mode
@@ -389,7 +378,6 @@ export class TabManager {
             width: windowBounds.width - fullscreenGapHorizontal * 2,
             height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
           };
-          console.log(`[Fullscreen][${ts}] LANDSCAPE bounds:`, bounds);
           tab.view.setBounds(bounds);
         } else {
           // Portrait: gap on top and bottom to avoid rounded corners
@@ -403,7 +391,6 @@ export class TabManager {
               fullscreenGapVertical -
               fullscreenGapVertical,
           };
-          console.log(`[Fullscreen][${ts}] PORTRAIT bounds:`, bounds);
           tab.view.setBounds(bounds);
         }
 
@@ -413,20 +400,12 @@ export class TabManager {
         // Force a layout recalculation by resizing the main window
         // This ensures WebContentsView properly recalculates its size
         const windowBoundsNow = this.state.mainWindow.getBounds();
-        const ts3 = new Date().toISOString().split("T")[1].slice(0, -1);
-        console.log(
-          `[Fullscreen][${ts3}] Applying window resize trick: ${windowBoundsNow.height} -> ${windowBoundsNow.height + 1}`
-        );
         this.state.mainWindow.setBounds({
           ...windowBoundsNow,
           height: windowBoundsNow.height + 1,
         });
 
         // Immediately restore to correct size and reapply adjusted bounds
-        const ts4 = new Date().toISOString().split("T")[1].slice(0, -1);
-        console.log(
-          `[Fullscreen][${ts4}] Restoring window to correct size: ${windowBoundsNow.height}`
-        );
         this.state.mainWindow.setBounds(windowBoundsNow);
         
         // Reapply the adjusted bounds after window resize
@@ -437,7 +416,6 @@ export class TabManager {
             width: windowBounds.width - fullscreenGapHorizontal * 2,
             height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
           };
-          console.log(`[Fullscreen][${ts4}] Reapplying LANDSCAPE bounds:`, adjustedBounds);
           tab.view.setBounds(adjustedBounds);
         } else {
           const adjustedBounds = {
@@ -450,34 +428,20 @@ export class TabManager {
               fullscreenGapVertical -
               fullscreenGapVertical,
           };
-          console.log(`[Fullscreen][${ts4}] Reapplying PORTRAIT bounds:`, adjustedBounds);
           tab.view.setBounds(adjustedBounds);
         }
 
         // Send fullscreen state immediately
         if (!tab.view.webContents.isDestroyed()) {
-          const ts5 = new Date().toISOString().split("T")[1].slice(0, -1);
-          console.log(
-            `[Fullscreen][${ts5}] Sending set-fullscreen-state: true`
-          );
           tab.view.webContents.send("set-fullscreen-state", true);
         }
       }
 
-      const ts2 = new Date().toISOString().split("T")[1].slice(0, -1);
-      console.log(
-        `[Fullscreen][${ts2}] ✅ Fullscreen mode enabled (with gaps, status bar hidden)`
-      );
     });
 
     contents.on("leave-html-full-screen", () => {
       const tab = this.state.tabs.find((t) => t.id === tabId);
       if (!tab) return;
-
-      const timestamp = new Date().toISOString().split("T")[1].slice(0, -1);
-      console.log(
-        `[Fullscreen][${timestamp}] leave-html-full-screen event received`
-      );
 
       // Clear fullscreen state
       tab.isFullscreen = false;
@@ -509,11 +473,6 @@ export class TabManager {
               windowBounds.height - topBarHeight - frameHalf * 2
             ),
           };
-          const ts = new Date().toISOString().split("T")[1].slice(0, -1);
-          console.log(
-            `[Fullscreen][${ts}] Restoring LANDSCAPE bounds:`,
-            bounds
-          );
           tab.view.setBounds(bounds);
         } else {
           // Portrait mode: status bar is on the TOP
@@ -528,27 +487,17 @@ export class TabManager {
                 frameHalf * 2
             ),
           };
-          const ts = new Date().toISOString().split("T")[1].slice(0, -1);
-          console.log(`[Fullscreen][${ts}] Restoring PORTRAIT bounds:`, bounds);
           tab.view.setBounds(bounds);
         }
 
         // Force a layout recalculation by resizing the main window
         const windowBoundsNow = this.state.mainWindow.getBounds();
-        const ts3 = new Date().toISOString().split("T")[1].slice(0, -1);
-        console.log(
-          `[Fullscreen][${ts3}] Applying window resize trick: ${windowBoundsNow.height} -> ${windowBoundsNow.height + 1}`
-        );
         this.state.mainWindow.setBounds({
           ...windowBoundsNow,
           height: windowBoundsNow.height + 1,
         });
 
         // Immediately restore to correct size and reapply adjusted bounds
-        const ts4 = new Date().toISOString().split("T")[1].slice(0, -1);
-        console.log(
-          `[Fullscreen][${ts4}] Restoring window to correct size: ${windowBoundsNow.height}`
-        );
         this.state.mainWindow.setBounds(windowBoundsNow);
         
         // Reapply the adjusted bounds after window resize
@@ -561,7 +510,6 @@ export class TabManager {
               windowBounds.height - topBarHeight - frameHalf * 2
             ),
           };
-          console.log(`[Fullscreen][${ts4}] Reapplying LANDSCAPE bounds:`, adjustedBounds);
           tab.view.setBounds(adjustedBounds);
         } else {
           const adjustedBounds = {
@@ -575,24 +523,15 @@ export class TabManager {
                 frameHalf * 2
             ),
           };
-          console.log(`[Fullscreen][${ts4}] Reapplying PORTRAIT bounds:`, adjustedBounds);
           tab.view.setBounds(adjustedBounds);
         }
 
         // Send fullscreen state immediately
         if (!tab.view.webContents.isDestroyed()) {
-          const ts5 = new Date().toISOString().split("T")[1].slice(0, -1);
-          console.log(
-            `[Fullscreen][${ts5}] Sending set-fullscreen-state: false`
-          );
           tab.view.webContents.send("set-fullscreen-state", false);
         }
       }
 
-      const ts2 = new Date().toISOString().split("T")[1].slice(0, -1);
-      console.log(
-        `[Fullscreen][${ts2}] ✅ Fullscreen state cleared (status bar shown, bounds restored)`
-      );
     });
   }
 
@@ -602,8 +541,6 @@ export class TabManager {
   exitFullscreen(tabId: string): void {
     const tab = this.state.tabs.find((t) => t.id === tabId);
     if (!tab || !tab.isFullscreen) return;
-
-    console.log("[Fullscreen] Exiting fullscreen via ESC key");
 
     // Execute JavaScript to exit fullscreen in the web page
     tab.view.webContents

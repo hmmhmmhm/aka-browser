@@ -58,11 +58,6 @@ export class WindowManager {
       const fullscreenGapHorizontal = 57; // Match tab-manager
       const fullscreenGapVertical = 67; // Match tab-manager
 
-      const ts = new Date().toISOString().split("T")[1].slice(0, -1);
-      console.log(`[WindowManager][${ts}] updateWebContentsViewBounds called in FULLSCREEN mode`);
-      console.log(`[WindowManager][${ts}] Window bounds:`, windowBounds);
-      console.log(`[WindowManager][${ts}] Orientation: ${this.state.isLandscape ? 'LANDSCAPE' : 'PORTRAIT'}`);
-      
       if (this.state.isLandscape) {
         // Landscape: gap on left and right to avoid rounded corners
         const bounds = {
@@ -71,7 +66,6 @@ export class WindowManager {
           width: windowBounds.width - fullscreenGapHorizontal * 2,
           height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
         };
-        console.log(`[WindowManager][${ts}] Setting LANDSCAPE bounds:`, bounds);
         activeTab.view.setBounds(bounds);
       } else {
         // Portrait: gap on top and bottom to avoid rounded corners
@@ -81,7 +75,6 @@ export class WindowManager {
           width: windowBounds.width - deviceFramePadding * 2,
           height: windowBounds.height - topBarHeight - fullscreenGapVertical - fullscreenGapVertical,
         };
-        console.log(`[WindowManager][${ts}] Setting PORTRAIT bounds:`, bounds);
         activeTab.view.setBounds(bounds);
       }
       
