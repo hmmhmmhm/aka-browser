@@ -1,0 +1,2 @@
+# Force TypeScript detection for script files
+apps/browser/scripts-src/*.ts linguist-language=TypeScript
