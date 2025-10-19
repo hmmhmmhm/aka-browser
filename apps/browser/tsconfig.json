@@ -13,8 +13,19 @@
     "types": ["node"],
     "composite": true
   },
-  "include": ["src/main.ts", "src/main/**/*.ts", "src/preload.ts", "src/types/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "dist-renderer", "release", "src/renderer"],
+  "include": [
+    "src/main.ts",
+    "src/main/**/*.ts",
+    "src/preload.ts",
+    "src/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-renderer",
+    "release",
+    "src/renderer"
+  ],
   "references": [
     { "path": "./tsconfig.node.json" },
     { "path": "./tsconfig.scripts.json" },

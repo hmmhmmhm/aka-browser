@@ -20,7 +20,7 @@ export class TrayManager {
    * Create tray icon
    */
   createTray(): void {
-    const iconPath = path.join(__dirname, "../assets/tray-icon.png");
+    const iconPath = path.join(__dirname, "../../assets/tray-icon.png");
 
     let trayIcon = nativeImage.createFromPath(iconPath);
 
@@ -70,6 +70,19 @@ export class TrayManager {
             this.state.mainWindow.focus();
           }
         },
+      },
+      {
+        label: "Open Settings",
+        click: () => {
+          if (this.state.mainWindow) {
+            this.state.mainWindow.show();
+            this.state.mainWindow.focus();
+            this.state.mainWindow.webContents.send("open-settings");
+          }
+        },
+      },
+      {
+        type: "separator",
       },
       {
         label: "Always on Top",
