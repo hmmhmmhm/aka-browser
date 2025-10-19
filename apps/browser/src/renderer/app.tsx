@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import TopBar from "./components/top-bar";
 import PhoneFrame from "./components/phone-frame";
 import TabOverview from "./components/tab-overview";
+import Settings from "./components/settings";
 
 function App() {
   const [_time, setTime] = useState("9:41");
@@ -16,6 +17,7 @@ function App() {
     "portrait"
   );
   const [showTabOverview, setShowTabOverview] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [tabCount, setTabCount] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const webContainerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +69,19 @@ function App() {
         setIsFullscreen(fullscreen);
       }
     );
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
+  // Listen for settings open request
+  useEffect(() => {
+    const cleanup = window.electronAPI?.onOpenSettings(() => {
+      setShowSettings(true);
+      // Hide WebContentsView when showing settings
+      window.electronAPI?.webContents.setVisible(false);
+    });
 
     return () => {
       if (cleanup) cleanup();
@@ -515,6 +530,35 @@ function App() {
     window.electronAPI?.webContents.reload();
   };
 
+  const handleCloseSettings = () => {
+    setShowSettings(false);
+
+    // Set bounds before showing view
+    if (webContainerRef.current) {
+      const rect = webContainerRef.current.getBoundingClientRect();
+      const statusBarHeight = 58;
+      const statusBarWidth = 58;
+
+      window.electronAPI?.webContents.setBounds({
+        x: Math.round(
+          rect.x + (orientation === "landscape" ? statusBarWidth : 0)
+        ),
+        y: Math.round(
+          rect.y + (orientation === "landscape" ? 0 : statusBarHeight)
+        ),
+        width: Math.round(
+          rect.width - (orientation === "landscape" ? statusBarWidth : 0)
+        ),
+        height: Math.round(
+          rect.height - (orientation === "landscape" ? 0 : statusBarHeight)
+        ),
+      });
+    }
+
+    // Show WebContentsView when closing settings
+    window.electronAPI?.webContents.setVisible(true);
+  };
+
   return (
     <div className="w-screen h-screen rounded-xl overflow-hidden bg-transparent">
       <TopBar
@@ -533,14 +577,22 @@ function App() {
         orientation={orientation}
         themeColor={themeColor}
         textColor={textColor}
-        showTabOverview={showTabOverview}
+        showTabOverview={showTabOverview || showSettings}
         isFullscreen={isFullscreen}
         tabOverviewContent={
-          <TabOverview
-            theme={systemTheme}
-            orientation={orientation}
-            onClose={handleCloseTabOverview}
-          />
+          showSettings ? (
+            <Settings
+              theme={systemTheme}
+              orientation={orientation}
+              onClose={handleCloseSettings}
+            />
+          ) : (
+            <TabOverview
+              theme={systemTheme}
+              orientation={orientation}
+              onClose={handleCloseTabOverview}
+            />
+          )
         }
       />
     </div>

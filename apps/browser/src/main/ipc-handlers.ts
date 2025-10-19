@@ -36,6 +36,7 @@ export class IPCHandlers {
     this.registerWebContentsHandlers();
     this.registerThemeHandlers();
     this.registerOrientationHandlers();
+    this.registerAppHandlers();
   }
 
   /**
@@ -347,6 +348,15 @@ export class IPCHandlers {
 
     ipcMain.handle("toggle-orientation", () => {
       return this.windowManager.toggleOrientation();
+    });
+  }
+
+  /**
+   * Register app-related handlers
+   */
+  private registerAppHandlers(): void {
+    ipcMain.handle("get-app-version", () => {
+      return app.getVersion();
     });
   }
 }

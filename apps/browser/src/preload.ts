@@ -48,6 +48,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeAllListeners("fullscreen-mode-changed");
   },
 
+  // Settings listener
+  onOpenSettings: (callback: () => void) => {
+    ipcRenderer.on("open-settings", callback);
+    return () => ipcRenderer.removeListener("open-settings", callback);
+  },
+
+  // App version
+  getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+
   // Tab management APIs
   tabs: {
     getAll: () => ipcRenderer.invoke("tabs-get-all"),
