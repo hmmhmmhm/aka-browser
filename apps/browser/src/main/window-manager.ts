@@ -48,6 +48,40 @@ export class WindowManager {
   updateWebContentsViewBounds(): void {
     if (!this.state.webContentsView || !this.state.mainWindow) return;
 
+    // Check if active tab is in fullscreen mode (Plan 1.5)
+    const activeTab = this.state.tabs.find((t) => t.id === this.state.activeTabId);
+    if (activeTab?.isFullscreen) {
+      // In fullscreen mode, hide status bar and add gaps to keep within device frame
+      const windowBounds = this.state.mainWindow.getBounds();
+      const topBarHeight = TOP_BAR_HEIGHT;
+      const fullscreenGap = 50; // 50px gap for fullscreen mode
+
+      if (this.state.isLandscape) {
+        // Landscape: 50px gap on left and right
+        activeTab.view.setBounds({
+          x: fullscreenGap,
+          y: topBarHeight,
+          width: windowBounds.width - (fullscreenGap * 2),
+          height: windowBounds.height - topBarHeight,
+        });
+      } else {
+        // Portrait: 50px gap on top and bottom
+        activeTab.view.setBounds({
+          x: 0,
+          y: topBarHeight + fullscreenGap,
+          width: windowBounds.width,
+          height: windowBounds.height - topBarHeight - (fullscreenGap * 2),
+        });
+      }
+      
+      // Notify renderer to hide status bar in fullscreen mode
+      this.state.mainWindow.webContents.send("fullscreen-mode-changed", true);
+      return;
+    }
+
+    // Not in fullscreen - show status bar
+    this.state.mainWindow.webContents.send("fullscreen-mode-changed", false);
+
     const bounds = this.state.mainWindow.getBounds();
     const dimensions = this.getWindowDimensions();
 
@@ -147,6 +181,13 @@ export class WindowManager {
       backgroundColor: "#00000000",
       roundedCorners: true,
       resizable: true,
+      fullscreenable: false, // Prevent window from going fullscreen (Plan 1.5)
+    });
+
+    // Prevent window from entering fullscreen when HTML fullscreen is requested
+    this.state.mainWindow.on("enter-full-screen", () => {
+      console.log("[Window] Preventing window fullscreen");
+      this.state.mainWindow?.setFullScreen(false);
     });
 
     // Enable swipe navigation gestures on macOS
@@ -184,6 +225,7 @@ export class WindowManager {
             "clipboard-read",
             "clipboard-write",
             "media",
+            "fullscreen", // Allow fullscreen - handled by Electron native events
           ];
 
           if (allowedPermissions.includes(permission)) {
@@ -306,6 +348,18 @@ export class WindowManager {
           }
         }
         return;
+      }
+
+      // ESC key to exit fullscreen (Plan 1.5)
+      if (input.key === "Escape" && !modifierKey && !input.shift && !input.alt) {
+        if (this.state.activeTabId) {
+          const activeTab = this.state.tabs.find((t) => t.id === this.state.activeTabId);
+          if (activeTab?.isFullscreen) {
+            event.preventDefault();
+            this.tabManager.exitFullscreen(this.state.activeTabId);
+            return;
+          }
+        }
       }
     });
   }

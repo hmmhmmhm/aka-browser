@@ -27,6 +27,9 @@ export class TabManager {
     const webviewPreloadPath = path.join(__dirname, "..", "webview-preload.js");
     const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
 
+    console.log("[TabManager] Creating tab with preload:", webviewPreloadPath);
+    console.log("[TabManager] Preload exists:", hasWebviewPreload);
+
     const view = new WebContentsView({
       webPreferences: {
         nodeIntegration: false,
@@ -48,8 +51,8 @@ export class TabManager {
         permission: string,
         callback: (result: boolean) => void
       ) => {
-        if (permission === "media") {
-          callback(true); // Allow media permissions for DRM
+        if (permission === "media" || permission === "fullscreen") {
+          callback(true); // Allow media and fullscreen permissions
         } else {
           callback(false);
         }
@@ -310,6 +313,132 @@ export class TabManager {
     });
 
     this.setupNavigationHandlers(contents, tabId);
+    this.setupFullscreenHandlers(contents, tabId);
+  }
+
+  /**
+   * Setup fullscreen event handlers using Electron's native events (Plan 1.5 - Correct approach)
+   * Note: We update bounds with gaps and hide status bar in fullscreen mode
+   */
+  private setupFullscreenHandlers(contents: Electron.WebContents, tabId: string): void {
+    // Listen for HTML fullscreen API events from Electron
+    contents.on("enter-html-full-screen", () => {
+      const tab = this.state.tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      console.log("[Fullscreen] enter-html-full-screen event received");
+      
+      // Mark tab as fullscreen (for state tracking)
+      tab.isFullscreen = true;
+
+      // Update bounds with gaps and hide status bar
+      if (this.state.mainWindow) {
+        const windowBounds = this.state.mainWindow.getBounds();
+        const topBarHeight = 40; // TOP_BAR_HEIGHT
+        const fullscreenGap = 50; // 50px gap
+
+        if (this.state.isLandscape) {
+          // Landscape: 50px gap on left and right
+          tab.view.setBounds({
+            x: fullscreenGap,
+            y: topBarHeight,
+            width: windowBounds.width - (fullscreenGap * 2),
+            height: windowBounds.height - topBarHeight,
+          });
+        } else {
+          // Portrait: 50px gap on top and bottom
+          tab.view.setBounds({
+            x: 0,
+            y: topBarHeight + fullscreenGap,
+            width: windowBounds.width,
+            height: windowBounds.height - topBarHeight - (fullscreenGap * 2),
+          });
+        }
+
+        // Notify renderer to hide status bar
+        this.state.mainWindow.webContents.send("fullscreen-mode-changed", true);
+        
+        // Notify webview that it's in fullscreen state (for CSS/JS)
+        tab.view.webContents.send("set-fullscreen-state", true);
+      }
+
+      console.log("[Fullscreen] ✅ Fullscreen mode enabled (with gaps, status bar hidden)");
+    });
+
+    contents.on("leave-html-full-screen", () => {
+      const tab = this.state.tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      console.log("[Fullscreen] leave-html-full-screen event received");
+
+      // Clear fullscreen state
+      tab.isFullscreen = false;
+
+      // Restore normal bounds
+      if (this.state.mainWindow) {
+        this.state.mainWindow.webContents.send("fullscreen-mode-changed", false);
+        
+        // Notify webview that it's no longer in fullscreen state
+        tab.view.webContents.send("set-fullscreen-state", false);
+
+        // Restore normal WebContentsView bounds
+        const windowBounds = this.state.mainWindow.getBounds();
+        const topBarHeight = 40; // TOP_BAR_HEIGHT
+        const statusBarHeight = 58;
+        const statusBarWidth = 58;
+        const framePadding = 15; // Device frame padding
+
+        if (this.state.isLandscape) {
+          // Landscape mode
+          tab.view.setBounds({
+            x: statusBarWidth + framePadding,
+            y: topBarHeight + framePadding,
+            width: windowBounds.width - statusBarWidth - framePadding * 2,
+            height: windowBounds.height - topBarHeight - framePadding * 2,
+          });
+        } else {
+          // Portrait mode
+          tab.view.setBounds({
+            x: framePadding,
+            y: topBarHeight + statusBarHeight + framePadding,
+            width: windowBounds.width - framePadding * 2,
+            height: windowBounds.height - topBarHeight - statusBarHeight - framePadding * 2,
+          });
+        }
+      }
+
+      console.log("[Fullscreen] ✅ Fullscreen state cleared (status bar shown, bounds restored)");
+    });
+  }
+
+  /**
+   * Exit fullscreen for a specific tab (called by ESC key handler)
+   */
+  exitFullscreen(tabId: string): void {
+    const tab = this.state.tabs.find((t) => t.id === tabId);
+    if (!tab || !tab.isFullscreen) return;
+
+    console.log("[Fullscreen] Exiting fullscreen via ESC key");
+
+    // Execute JavaScript to exit fullscreen in the web page
+    tab.view.webContents.executeJavaScript(`
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    `).catch((err) => {
+      console.error("[Fullscreen] Failed to exit fullscreen:", err);
+    });
+
+    // Notify webview-preload to update state
+    if (!tab.view.webContents.isDestroyed()) {
+      tab.view.webContents.send("webview-fullscreen-exited");
+    }
   }
 
   /**

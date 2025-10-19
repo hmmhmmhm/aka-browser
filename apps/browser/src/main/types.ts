@@ -10,6 +10,8 @@ export interface Tab {
   title: string;
   url: string;
   preview?: string; // Base64 encoded preview image
+  isFullscreen?: boolean; // Track if this tab is in fullscreen mode
+  originalBounds?: Electron.Rectangle; // Store original bounds for restoration
 }
 
 export interface AppState {

@@ -17,6 +17,7 @@ function App() {
   );
   const [showTabOverview, setShowTabOverview] = useState(false);
   const [tabCount, setTabCount] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const webContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize and listen for system theme changes
@@ -51,6 +52,19 @@ function App() {
     const cleanup = window.electronAPI?.onOrientationChanged(
       (orient: "portrait" | "landscape") => {
         setOrientation(orient);
+      }
+    );
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
+  // Listen for fullscreen mode changes
+  useEffect(() => {
+    const cleanup = window.electronAPI?.onFullscreenModeChanged(
+      (fullscreen: boolean) => {
+        setIsFullscreen(fullscreen);
       }
     );
 
@@ -519,6 +533,7 @@ function App() {
         themeColor={themeColor}
         textColor={textColor}
         showTabOverview={showTabOverview}
+        isFullscreen={isFullscreen}
         tabOverviewContent={
           <TabOverview
             theme={systemTheme}

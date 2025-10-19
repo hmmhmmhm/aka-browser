@@ -40,6 +40,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeAllListeners("orientation-changed");
   },
 
+  // Fullscreen mode listener
+  onFullscreenModeChanged: (callback: (isFullscreen: boolean) => void) => {
+    ipcRenderer.on("fullscreen-mode-changed", (_event, isFullscreen) =>
+      callback(isFullscreen)
+    );
+    return () => ipcRenderer.removeAllListeners("fullscreen-mode-changed");
+  },
+
   // Tab management APIs
   tabs: {
     getAll: () => ipcRenderer.invoke("tabs-get-all"),

@@ -3,6 +3,58 @@
 
 import { ipcRenderer } from "electron";
 
+// ============================================================================
+// Fullscreen API Polyfill (Plan 1.5 - Final)
+// ============================================================================
+// We need to polyfill the Fullscreen API so web pages think they're in fullscreen
+// even though the window doesn't actually go fullscreen
+
+console.log("[Preload] ✓ Loaded - Fullscreen API polyfill active");
+
+// Track fullscreen state
+let isFullscreenActive = false;
+let fullscreenElement: Element | null = null;
+
+// Listen for fullscreen state from main process
+ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
+  const wasFullscreen = isFullscreenActive;
+  isFullscreenActive = state;
+  
+  if (state && !wasFullscreen) {
+    // Entering fullscreen
+    fullscreenElement = document.documentElement; // Assume whole document
+    const event = new Event("fullscreenchange", { bubbles: true });
+    document.dispatchEvent(event);
+  } else if (!state && wasFullscreen) {
+    // Exiting fullscreen
+    fullscreenElement = null;
+    const event = new Event("fullscreenchange", { bubbles: true });
+    document.dispatchEvent(event);
+  }
+});
+
+// Override fullscreenElement getter
+Object.defineProperty(Document.prototype, "fullscreenElement", {
+  get: function(this: Document): Element | null {
+    return fullscreenElement;
+  },
+  configurable: true,
+});
+
+// Override webkitFullscreenElement getter
+Object.defineProperty(Document.prototype, "webkitFullscreenElement", {
+  get: function(this: Document): Element | null {
+    return fullscreenElement;
+  },
+  configurable: true,
+});
+
+console.log("[Preload] ✓ Fullscreen API polyfill installed");
+
+// ============================================================================
+// Theme Color Extraction
+// ============================================================================
+
 // Extract theme color safely when DOM is ready
 function extractThemeColor(): string | null {
   try {

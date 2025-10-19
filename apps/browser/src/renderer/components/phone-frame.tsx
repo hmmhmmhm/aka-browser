@@ -7,6 +7,7 @@ interface PhoneFrameProps {
   themeColor: string;
   textColor: string;
   showTabOverview?: boolean;
+  isFullscreen?: boolean;
   tabOverviewContent?: React.ReactNode;
 }
 
@@ -16,6 +17,7 @@ function PhoneFrame({
   themeColor,
   textColor,
   showTabOverview,
+  isFullscreen,
   tabOverviewContent,
 }: PhoneFrameProps) {
   const isLandscape = orientation === "landscape";
@@ -71,12 +73,14 @@ function PhoneFrame({
               ref={webContainerRef}
               className="absolute top-0 left-0 right-0 bottom-0 bg-transparent overflow-hidden rounded-[32px] pointer-events-none"
             />
-            {/* Status bar - React component on top */}
-            <StatusBar 
-              themeColor={themeColor}
-              textColor={textColor}
-              orientation={orientation}
-            />
+            {/* Status bar - React component on top (hidden in fullscreen) */}
+            {!isFullscreen && (
+              <StatusBar 
+                themeColor={themeColor}
+                textColor={textColor}
+                orientation={orientation}
+              />
+            )}
             {/* Tab overview overlay - React component */}
             {showTabOverview && (
               <div className="absolute top-0 left-0 right-0 bottom-0 rounded-[32px] overflow-hidden z-50 pointer-events-auto">

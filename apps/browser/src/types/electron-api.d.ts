@@ -48,6 +48,9 @@ interface ElectronAPI {
   toggleOrientation: () => Promise<void>;
   onOrientationChanged: (callback: (orientation: 'portrait' | 'landscape') => void) => () => void;
 
+  // Fullscreen mode listener
+  onFullscreenModeChanged: (callback: (isFullscreen: boolean) => void) => () => void;
+
   // Tab management APIs
   tabs: {
     getAll: () => Promise<TabsData>;
