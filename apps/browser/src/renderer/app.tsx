@@ -87,27 +87,28 @@ function App() {
       (data: { tabId: string; tabs: any[] }) => {
         setTabCount(data.tabs.length);
 
-        // Set bounds from renderer when tab changes
-        if (webContainerRef.current) {
-          const rect = webContainerRef.current.getBoundingClientRect();
-          const statusBarHeight = 58;
-          const statusBarWidth = 58;
+        // Set bounds from renderer when tab changes (skip in fullscreen mode)
+        // TEMPORARILY DISABLED FOR DEBUGGING
+        // if (webContainerRef.current && !isFullscreen) {
+        //   const rect = webContainerRef.current.getBoundingClientRect();
+        //   const statusBarHeight = 58;
+        //   const statusBarWidth = 58;
 
-          window.electronAPI?.webContents.setBounds({
-            x: Math.round(
-              rect.x + (orientation === "landscape" ? statusBarWidth : 0)
-            ),
-            y: Math.round(
-              rect.y + (orientation === "landscape" ? 0 : statusBarHeight)
-            ),
-            width: Math.round(
-              rect.width - (orientation === "landscape" ? statusBarWidth : 0)
-            ),
-            height: Math.round(
-              rect.height - (orientation === "landscape" ? 0 : statusBarHeight)
-            ),
-          });
-        }
+        //   window.electronAPI?.webContents.setBounds({
+        //     x: Math.round(
+        //       rect.x + (orientation === "landscape" ? statusBarWidth : 0)
+        //     ),
+        //     y: Math.round(
+        //       rect.y + (orientation === "landscape" ? 0 : statusBarHeight)
+        //     ),
+        //     width: Math.round(
+        //       rect.width - (orientation === "landscape" ? statusBarWidth : 0)
+        //     ),
+        //     height: Math.round(
+        //       rect.height - (orientation === "landscape" ? 0 : statusBarHeight)
+        //     ),
+        //   });
+        // }
       }
     );
 

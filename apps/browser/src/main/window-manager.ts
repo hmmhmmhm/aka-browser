@@ -54,24 +54,35 @@ export class WindowManager {
       // In fullscreen mode, hide status bar and add gaps to keep within device frame
       const windowBounds = this.state.mainWindow.getBounds();
       const topBarHeight = TOP_BAR_HEIGHT;
-      const fullscreenGap = 50; // 50px gap for fullscreen mode
+      const deviceFramePadding = FRAME_PADDING / 2;
+      const fullscreenGapHorizontal = 57; // Match tab-manager
+      const fullscreenGapVertical = 67; // Match tab-manager
 
+      const ts = new Date().toISOString().split("T")[1].slice(0, -1);
+      console.log(`[WindowManager][${ts}] updateWebContentsViewBounds called in FULLSCREEN mode`);
+      console.log(`[WindowManager][${ts}] Window bounds:`, windowBounds);
+      console.log(`[WindowManager][${ts}] Orientation: ${this.state.isLandscape ? 'LANDSCAPE' : 'PORTRAIT'}`);
+      
       if (this.state.isLandscape) {
-        // Landscape: 50px gap on left and right
-        activeTab.view.setBounds({
-          x: fullscreenGap,
-          y: topBarHeight,
-          width: windowBounds.width - (fullscreenGap * 2),
-          height: windowBounds.height - topBarHeight,
-        });
+        // Landscape: gap on left and right to avoid rounded corners
+        const bounds = {
+          x: fullscreenGapHorizontal - 30,
+          y: topBarHeight + deviceFramePadding,
+          width: windowBounds.width - fullscreenGapHorizontal * 2,
+          height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
+        };
+        console.log(`[WindowManager][${ts}] Setting LANDSCAPE bounds:`, bounds);
+        activeTab.view.setBounds(bounds);
       } else {
-        // Portrait: 50px gap on top and bottom
-        activeTab.view.setBounds({
-          x: 0,
-          y: topBarHeight + fullscreenGap,
-          width: windowBounds.width,
-          height: windowBounds.height - topBarHeight - (fullscreenGap * 2),
-        });
+        // Portrait: gap on top and bottom to avoid rounded corners
+        const bounds = {
+          x: deviceFramePadding,
+          y: topBarHeight + fullscreenGapVertical - 30,
+          width: windowBounds.width - deviceFramePadding * 2,
+          height: windowBounds.height - topBarHeight - fullscreenGapVertical - fullscreenGapVertical,
+        };
+        console.log(`[WindowManager][${ts}] Setting PORTRAIT bounds:`, bounds);
+        activeTab.view.setBounds(bounds);
       }
       
       // Notify renderer to hide status bar in fullscreen mode

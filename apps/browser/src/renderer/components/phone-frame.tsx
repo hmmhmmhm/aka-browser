@@ -33,13 +33,24 @@ function PhoneFrame({
       const statusBarHeight = 58;
       const statusBarWidth = 58;
       
-      // Web content positioned below/beside status bar
-      window.electronAPI?.webContents.setBounds({
-        x: Math.round(rect.x + (isLandscape ? statusBarWidth : 0)),
-        y: Math.round(rect.y + (isLandscape ? 0 : statusBarHeight)),
-        width: Math.round(rect.width - (isLandscape ? statusBarWidth : 0)),
-        height: Math.round(rect.height - (isLandscape ? 0 : statusBarHeight)),
-      });
+      // In fullscreen mode, apply -30px offset
+      if (isFullscreen) {
+        // Fullscreen mode: apply offset to move content closer to edges
+        window.electronAPI?.webContents.setBounds({
+          x: Math.round(rect.x + (isLandscape ? statusBarWidth - 30 : 0)),
+          y: Math.round(rect.y + (isLandscape ? 0 : statusBarHeight - 30)),
+          width: Math.round(rect.width - (isLandscape ? statusBarWidth : 0)),
+          height: Math.round(rect.height - (isLandscape ? 0 : statusBarHeight)),
+        });
+      } else {
+        // Normal mode: standard positioning
+        window.electronAPI?.webContents.setBounds({
+          x: Math.round(rect.x + (isLandscape ? statusBarWidth : 0)),
+          y: Math.round(rect.y + (isLandscape ? 0 : statusBarHeight)),
+          width: Math.round(rect.width - (isLandscape ? statusBarWidth : 0)),
+          height: Math.round(rect.height - (isLandscape ? 0 : statusBarHeight)),
+        });
+      }
     };
 
     // Initial bounds update with multiple attempts to ensure it's set
@@ -53,7 +64,7 @@ function PhoneFrame({
     return () => {
       window.removeEventListener("resize", updateBounds);
     };
-  }, [webContainerRef, orientation]);
+  }, [webContainerRef, orientation, isFullscreen]);
 
   return (
     <div

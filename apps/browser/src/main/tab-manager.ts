@@ -384,7 +384,7 @@ export class TabManager {
           // Landscape: gap on left and right to avoid rounded corners
           // Note: We ignore status bar space in fullscreen mode
           const bounds = {
-            x: fullscreenGapHorizontal,
+            x: fullscreenGapHorizontal - 30,
             y: topBarHeight + deviceFramePadding,
             width: windowBounds.width - fullscreenGapHorizontal * 2,
             height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
@@ -395,7 +395,7 @@ export class TabManager {
           // Portrait: gap on top and bottom to avoid rounded corners
           const bounds = {
             x: deviceFramePadding,
-            y: topBarHeight + fullscreenGapVertical,
+            y: topBarHeight + fullscreenGapVertical - 30,
             width: windowBounds.width - deviceFramePadding * 2,
             height:
               windowBounds.height -
@@ -422,12 +422,37 @@ export class TabManager {
           height: windowBoundsNow.height + 1,
         });
 
-        // Immediately restore to correct size
+        // Immediately restore to correct size and reapply adjusted bounds
         const ts4 = new Date().toISOString().split("T")[1].slice(0, -1);
         console.log(
           `[Fullscreen][${ts4}] Restoring window to correct size: ${windowBoundsNow.height}`
         );
         this.state.mainWindow.setBounds(windowBoundsNow);
+        
+        // Reapply the adjusted bounds after window resize
+        if (isCurrentlyLandscape) {
+          const adjustedBounds = {
+            x: fullscreenGapHorizontal - 30,
+            y: topBarHeight + deviceFramePadding,
+            width: windowBounds.width - fullscreenGapHorizontal * 2,
+            height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
+          };
+          console.log(`[Fullscreen][${ts4}] Reapplying LANDSCAPE bounds:`, adjustedBounds);
+          tab.view.setBounds(adjustedBounds);
+        } else {
+          const adjustedBounds = {
+            x: deviceFramePadding,
+            y: topBarHeight + fullscreenGapVertical - 30,
+            width: windowBounds.width - deviceFramePadding * 2,
+            height:
+              windowBounds.height -
+              topBarHeight -
+              fullscreenGapVertical -
+              fullscreenGapVertical,
+          };
+          console.log(`[Fullscreen][${ts4}] Reapplying PORTRAIT bounds:`, adjustedBounds);
+          tab.view.setBounds(adjustedBounds);
+        }
 
         // Send fullscreen state immediately
         if (!tab.view.webContents.isDestroyed()) {
@@ -509,7 +534,6 @@ export class TabManager {
         }
 
         // Force a layout recalculation by resizing the main window
-        // This ensures WebContentsView properly recalculates its size
         const windowBoundsNow = this.state.mainWindow.getBounds();
         const ts3 = new Date().toISOString().split("T")[1].slice(0, -1);
         console.log(
@@ -520,12 +544,40 @@ export class TabManager {
           height: windowBoundsNow.height + 1,
         });
 
-        // Immediately restore to correct size
+        // Immediately restore to correct size and reapply adjusted bounds
         const ts4 = new Date().toISOString().split("T")[1].slice(0, -1);
         console.log(
           `[Fullscreen][${ts4}] Restoring window to correct size: ${windowBoundsNow.height}`
         );
         this.state.mainWindow.setBounds(windowBoundsNow);
+        
+        // Reapply the adjusted bounds after window resize
+        if (isCurrentlyLandscape) {
+          const adjustedBounds = {
+            x: statusBarWidth,
+            y: Math.round(topBarHeight + frameHalf),
+            width: Math.round(windowBounds.width - statusBarWidth - frameHalf),
+            height: Math.round(
+              windowBounds.height - topBarHeight - frameHalf * 2
+            ),
+          };
+          console.log(`[Fullscreen][${ts4}] Reapplying LANDSCAPE bounds:`, adjustedBounds);
+          tab.view.setBounds(adjustedBounds);
+        } else {
+          const adjustedBounds = {
+            x: Math.round(frameHalf),
+            y: Math.round(topBarHeight + statusBarHeight + frameHalf),
+            width: Math.round(windowBounds.width - frameHalf * 2),
+            height: Math.round(
+              windowBounds.height -
+                topBarHeight -
+                statusBarHeight -
+                frameHalf * 2
+            ),
+          };
+          console.log(`[Fullscreen][${ts4}] Reapplying PORTRAIT bounds:`, adjustedBounds);
+          tab.view.setBounds(adjustedBounds);
+        }
 
         // Send fullscreen state immediately
         if (!tab.view.webContents.isDestroyed()) {
