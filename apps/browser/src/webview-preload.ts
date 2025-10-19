@@ -20,16 +20,36 @@ ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
   const wasFullscreen = isFullscreenActive;
   isFullscreenActive = state;
   
+  const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+  console.log(`[Preload][${timestamp}] Fullscreen state changed: ${state}`);
+  console.log(`[Preload][${timestamp}] Window size: ${window.innerWidth}x${window.innerHeight}`);
+  console.log(`[Preload][${timestamp}] Screen size (overridden): ${window.screen.width}x${window.screen.height}`);
+  console.log(`[Preload][${timestamp}] Original screen size: ${originalScreenWidth}x${originalScreenHeight}`);
+  
   if (state && !wasFullscreen) {
     // Entering fullscreen
     fullscreenElement = document.documentElement; // Assume whole document
+    
+    // Force a resize event to make sure the page knows about the new size
+    window.dispatchEvent(new Event('resize'));
+    
     const event = new Event("fullscreenchange", { bubbles: true });
     document.dispatchEvent(event);
+    
+    const ts1 = new Date().toISOString().split('T')[1].slice(0, -1);
+    console.log(`[Preload][${ts1}] ✅ Entered fullscreen mode`);
   } else if (!state && wasFullscreen) {
     // Exiting fullscreen
     fullscreenElement = null;
+    
+    // Force a resize event
+    window.dispatchEvent(new Event('resize'));
+    
     const event = new Event("fullscreenchange", { bubbles: true });
     document.dispatchEvent(event);
+    
+    const ts2 = new Date().toISOString().split('T')[1].slice(0, -1);
+    console.log(`[Preload][${ts2}] ✅ Exited fullscreen mode`);
   }
 });
 
@@ -49,7 +69,55 @@ Object.defineProperty(Document.prototype, "webkitFullscreenElement", {
   configurable: true,
 });
 
-console.log("[Preload] ✓ Fullscreen API polyfill installed");
+// Store original screen dimensions
+const originalScreenWidth = window.screen.width;
+const originalScreenHeight = window.screen.height;
+
+// Override screen.width and screen.height to match window size in fullscreen
+Object.defineProperty(window.screen, "width", {
+  get: function(): number {
+    // In fullscreen mode, return window size instead of actual screen size
+    if (isFullscreenActive) {
+      return window.innerWidth;
+    }
+    return originalScreenWidth;
+  },
+  configurable: true,
+});
+
+Object.defineProperty(window.screen, "height", {
+  get: function(): number {
+    // In fullscreen mode, return window size instead of actual screen size
+    if (isFullscreenActive) {
+      return window.innerHeight;
+    }
+    return originalScreenHeight;
+  },
+  configurable: true,
+});
+
+// Also override availWidth and availHeight
+Object.defineProperty(window.screen, "availWidth", {
+  get: function(): number {
+    if (isFullscreenActive) {
+      return window.innerWidth;
+    }
+    return originalScreenWidth;
+  },
+  configurable: true,
+});
+
+Object.defineProperty(window.screen, "availHeight", {
+  get: function(): number {
+    if (isFullscreenActive) {
+      return window.innerHeight;
+    }
+    return originalScreenHeight;
+  },
+  configurable: true,
+});
+
+console.log("[Preload] ✓ Fullscreen API polyfill installed (with screen size override)");
 
 // ============================================================================
 // Theme Color Extraction
