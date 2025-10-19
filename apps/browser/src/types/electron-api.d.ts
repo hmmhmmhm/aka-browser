@@ -55,6 +55,12 @@ export interface ElectronAPI {
     callback: (isFullscreen: boolean) => void
   ) => () => void;
 
+  // Settings listener
+  onOpenSettings: (callback: () => void) => () => void;
+
+  // App version
+  getAppVersion: () => Promise<string>;
+
   // Tab management APIs
   tabs: {
     getAll: () => Promise<TabsData>;
