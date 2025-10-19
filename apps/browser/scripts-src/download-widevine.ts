@@ -7,29 +7,42 @@
  * This script manually downloads the Widevine CDM component.
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
+import * as path from 'path';
+
+interface PackageJson {
+  devDependencies: {
+    electron: string;
+    [key: string]: string;
+  };
+}
 
 console.log('[Widevine] Starting Widevine CDM download...\n');
 
 // Get Electron version
-const packageJson = require('../package.json');
-const electronVersion = packageJson.devDependencies.electron.match(/v?(\d+\.\d+\.\d+)/)[1];
+const packageJsonPath = path.join(__dirname, '..', 'package.json');
+const packageJson: PackageJson = require(packageJsonPath);
+const electronVersionMatch = packageJson.devDependencies.electron.match(/v?(\d+\.\d+\.\d+)/);
+
+if (!electronVersionMatch) {
+  console.error('[Widevine] ✗ Could not parse Electron version');
+  process.exit(1);
+}
+
+const electronVersion = electronVersionMatch[1];
 
 console.log(`[Widevine] Electron version: ${electronVersion}`);
 console.log(`[Widevine] Platform: ${process.platform}`);
 console.log(`[Widevine] Arch: ${process.arch}\n`);
 
 // Widevine CDM download URLs (from Chrome)
-const WIDEVINE_VERSIONS = {
+const WIDEVINE_VERSIONS: Record<string, string> = {
   '38.0.0': '4.10.2710.0',
   '37.0.0': '4.10.2710.0',
   '36.0.0': '4.10.2710.0'
 };
 
-const widevineVersion = WIDEVINE_VERSIONS[electronVersion.split('.').slice(0, 2).join('.')] || '4.10.2710.0';
+const majorMinorVersion = electronVersion.split('.').slice(0, 2).join('.');
+const widevineVersion = WIDEVINE_VERSIONS[majorMinorVersion] || '4.10.2710.0';
 
 console.log(`[Widevine] Widevine CDM version: ${widevineVersion}\n`);
 

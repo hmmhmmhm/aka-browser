@@ -5,15 +5,30 @@
  * This runs BEFORE electron-builder's codesign
  */
 
-const { execSync } = require('child_process');
-const path = require('path');
-const os = require('os');
-const fs = require('fs');
+import { execSync } from 'child_process';
+import * as path from 'path';
+import * as os from 'os';
+import * as fs from 'fs';
+
+interface EVSConfig {
+  account_name?: string;
+  Auth?: {
+    AccountName?: string;
+  };
+  Account?: {
+    AccountName?: string;
+  };
+}
+
+interface BuildContext {
+  electronPlatformName: string;
+  appOutDir: string;
+}
 
 /**
  * Verify EVS environment
  */
-function verifyEnvironment() {
+function verifyEnvironment(): boolean {
   const configPath = path.join(os.homedir(), '.config', 'evs', 'config.json');
   
   if (!fs.existsSync(configPath)) {
@@ -22,14 +37,16 @@ function verifyEnvironment() {
   }
   
   try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    const accountName = config.account_name || (config.Auth && config.Auth.AccountName) || (config.Account && config.Account.AccountName);
+    const configContent = fs.readFileSync(configPath, 'utf8');
+    const config: EVSConfig = JSON.parse(configContent);
+    const accountName = config.account_name || config.Auth?.AccountName || config.Account?.AccountName;
     if (accountName) {
       console.log('[EVS] ✓ EVS account configured:', accountName);
       return true;
     }
   } catch (error) {
-    console.error('[EVS] ✗ Failed to read EVS config:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[EVS] ✗ Failed to read EVS config:', errorMessage);
     return false;
   }
   
@@ -39,7 +56,7 @@ function verifyEnvironment() {
 /**
  * Sign with EVS VMP
  */
-function signWithEVS(appPath) {
+function signWithEVS(appPath: string): boolean {
   console.log('[EVS] Signing with VMP before Apple codesign...');
   console.log('[EVS] App path:', appPath);
   
@@ -54,7 +71,8 @@ function signWithEVS(appPath) {
     console.log('[EVS] ✓ VMP signing completed successfully\n');
     return true;
   } catch (error) {
-    console.error('[EVS] ✗ VMP signing failed:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[EVS] ✗ VMP signing failed:', errorMessage);
     return false;
   }
 }
@@ -62,7 +80,7 @@ function signWithEVS(appPath) {
 /**
  * beforeSign hook for electron-builder
  */
-exports.default = async function(context) {
+export default async function(context: BuildContext): Promise<void> {
   const { electronPlatformName, appOutDir } = context;
   
   console.log('\n[EVS] beforeSign hook triggered');
@@ -82,7 +100,7 @@ exports.default = async function(context) {
   }
   
   // Determine app path
-  let appPath;
+  let appPath: string;
   if (electronPlatformName === 'darwin') {
     // Find .app bundle
     const files = fs.readdirSync(appOutDir);
@@ -102,4 +120,4 @@ exports.default = async function(context) {
   if (!success) {
     console.warn('[EVS] ⚠ VMP signing failed, but continuing with Apple codesign...');
   }
-};
+}

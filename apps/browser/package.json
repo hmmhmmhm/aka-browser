@@ -4,9 +4,10 @@
   "description": "A lightweight, elegant web browser for developers featuring an iPhone frame interface",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "npm run copy:assets && concurrently \"npm run build:main:watch\" \"npm run build:webview:watch\" \"npm run dev:renderer\" \"npm run start\"",
+    "dev": "npm run copy:assets && npm run build:scripts && concurrently \"npm run build:main:watch\" \"npm run build:webview:watch\" \"npm run dev:renderer\" \"npm run start\"",
     "dev:renderer": "vite",
-    "build": "npm run copy:assets && npm run build:main && npm run build:webview && npm run build:renderer",
+    "build": "npm run copy:assets && npm run build:scripts && npm run build:main && npm run build:webview && npm run build:renderer",
+    "build:scripts": "tsc --project tsconfig.scripts.json",
     "build:main": "tsc",
     "build:webview": "tsc --project tsconfig.webview.json",
     "build:webview:watch": "tsc --project tsconfig.webview.json --watch",

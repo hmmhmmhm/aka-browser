@@ -7,17 +7,32 @@
  * 2. Signs the application with Widevine VMP signature after packaging
  */
 
-const { execSync, spawnSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import { execSync, spawnSync, SpawnSyncReturns } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+
+interface EVSConfig {
+  account_name?: string;
+  Auth?: {
+    AccountName?: string;
+  };
+  Account?: {
+    AccountName?: string;
+  };
+}
+
+interface BuildContext {
+  electronPlatformName: string;
+  appOutDir: string;
+}
 
 /**
  * Check if Python 3 is available
  */
-function checkPython() {
+function checkPython(): boolean {
   try {
-    const result = spawnSync('python3', ['--version'], { encoding: 'utf8' });
+    const result: SpawnSyncReturns<string> = spawnSync('python3', ['--version'], { encoding: 'utf8' });
     if (result.status === 0) {
       console.log('[EVS] Python 3 found:', result.stdout.trim());
       return true;
@@ -32,9 +47,9 @@ function checkPython() {
 /**
  * Check if castlabs-evs is installed
  */
-function checkEvsInstalled() {
+function checkEvsInstalled(): boolean {
   try {
-    const result = spawnSync('python3', ['-m', 'pip', 'show', 'castlabs-evs'], { encoding: 'utf8' });
+    const result: SpawnSyncReturns<string> = spawnSync('python3', ['-m', 'pip', 'show', 'castlabs-evs'], { encoding: 'utf8' });
     if (result.status === 0 && result.stdout.includes('Name: castlabs-evs')) {
       const versionMatch = result.stdout.match(/Version: ([\d.]+)/);
       const version = versionMatch ? versionMatch[1] : 'unknown';
@@ -51,7 +66,7 @@ function checkEvsInstalled() {
 /**
  * Check if EVS account is configured
  */
-function checkEvsAccount() {
+function checkEvsAccount(): boolean {
   const configPath = path.join(os.homedir(), '.config', 'evs', 'config.json');
   
   if (!fs.existsSync(configPath)) {
@@ -60,15 +75,17 @@ function checkEvsAccount() {
   }
   
   try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const configContent = fs.readFileSync(configPath, 'utf8');
+    const config: EVSConfig = JSON.parse(configContent);
     // Check for both formats: account_name (old) and Auth.AccountName (new)
-    const accountName = config.account_name || (config.Auth && config.Auth.AccountName) || (config.Account && config.Account.AccountName);
+    const accountName = config.account_name || config.Auth?.AccountName || config.Account?.AccountName;
     if (accountName) {
       console.log('[EVS] ✓ EVS account configured:', accountName);
       return true;
     }
   } catch (error) {
-    console.error('[EVS] ✗ Failed to read EVS config:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[EVS] ✗ Failed to read EVS config:', errorMessage);
     return false;
   }
   
@@ -79,7 +96,7 @@ function checkEvsAccount() {
 /**
  * Print setup instructions
  */
-function printSetupInstructions() {
+function printSetupInstructions(): void {
   console.error('\n[EVS] Setup Instructions:');
   console.error('[EVS] ==========================================');
   console.error('[EVS] ');
@@ -101,7 +118,7 @@ function printSetupInstructions() {
 /**
  * Verify EVS environment setup
  */
-function verifyEnvironment() {
+function verifyEnvironment(): boolean {
   console.log('\n[EVS] Verifying EVS environment...');
   console.log('[EVS] ==========================================');
   
@@ -124,12 +141,12 @@ function verifyEnvironment() {
 /**
  * Copy Widevine CDM to app bundle
  */
-function copyWidevineCdm(appOutDir, electronPlatformName) {
+function copyWidevineCdm(appOutDir: string, electronPlatformName: string): boolean {
   console.log('[Widevine] Copying Widevine CDM to app bundle...');
   
   // Determine source path based on platform
-  let widevineSrcPath;
-  let widevineDestPath;
+  let widevineSrcPath: string | undefined;
+  let widevineDestPath: string;
   
   if (electronPlatformName === 'darwin') {
     // macOS: Check multiple possible locations
@@ -211,7 +228,8 @@ function copyWidevineCdm(appOutDir, electronPlatformName) {
         return false;
       }
     } catch (error) {
-      console.error('[Widevine] ✗ Failed to copy Widevine CDM:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Widevine] ✗ Failed to copy Widevine CDM:', errorMessage);
       return false;
     }
   } else if (electronPlatformName === 'win32') {
@@ -226,7 +244,7 @@ function copyWidevineCdm(appOutDir, electronPlatformName) {
 /**
  * Sign the application package
  */
-function signPackage(appOutDir, persistent = false) {
+function signPackage(appOutDir: string, persistent: boolean = false): boolean {
   const persistentFlag = persistent ? '--persistent' : '';
   const command = `python3 -m castlabs_evs.vmp sign-pkg ${persistentFlag} "${appOutDir}"`;
   
@@ -241,7 +259,8 @@ function signPackage(appOutDir, persistent = false) {
     console.log('[EVS] VMP signing completed successfully\n');
     return true;
   } catch (error) {
-    console.error('[EVS] VMP signing failed:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[EVS] VMP signing failed:', errorMessage);
     return false;
   }
 }
@@ -249,7 +268,7 @@ function signPackage(appOutDir, persistent = false) {
 /**
  * Main electron-builder hook
  */
-exports.default = async function(context) {
+export default async function(context: BuildContext): Promise<void> {
   const { electronPlatformName, appOutDir } = context;
   
   console.log('\n[EVS] Starting post-pack process...');
@@ -280,7 +299,7 @@ exports.default = async function(context) {
   // castlabs v16+ uses Component Updater to automatically download and install CDM
   // Manual bundling is not recommended and has legal implications
   console.log('\n[EVS] Widevine CDM will be downloaded automatically by Component Updater on first run');
-};
+}
 
 // Allow running this script directly for verification
 if (require.main === module) {
