@@ -5,5 +5,8 @@ release
 *.log
 .DS_Store
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Compiled scripts (TypeScript sources in scripts-src/)
 scripts/*.js

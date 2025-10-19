@@ -10,7 +10,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "types": ["node"]
+    "types": ["node"],
+    "composite": true
   },
   "include": ["src/webview-preload.ts"],
   "exclude": ["node_modules", "dist", "dist-renderer", "release"]
