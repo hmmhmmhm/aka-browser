@@ -3,6 +3,173 @@
 
 import { ipcRenderer } from "electron";
 
+// ============================================================================
+// Fullscreen API Polyfill (Plan 1.5 - Final)
+// ============================================================================
+// We need to polyfill the Fullscreen API so web pages think they're in fullscreen
+// even though the window doesn't actually go fullscreen
+
+console.log("[Preload] ✓ Loaded - Fullscreen API polyfill active");
+
+// Track fullscreen state
+let isFullscreenActive = false;
+let fullscreenElement: Element | null = null;
+
+// Helper function to apply object-fit style to video elements
+function applyVideoFitStyle(fitValue: string) {
+  const videos = document.querySelectorAll('video');
+  videos.forEach((video) => {
+    if (fitValue) {
+      video.style.objectFit = fitValue;
+    } else {
+      video.style.objectFit = '';
+    }
+  });
+  
+  // Also observe for dynamically added videos
+  if (fitValue === 'contain') {
+    startVideoObserver();
+  } else {
+    stopVideoObserver();
+  }
+}
+
+// MutationObserver to handle dynamically added videos
+let videoObserver: MutationObserver | null = null;
+
+function startVideoObserver() {
+  if (videoObserver) return;
+  
+  videoObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node instanceof HTMLVideoElement) {
+          node.style.objectFit = 'contain';
+        } else if (node instanceof Element) {
+          const videos = node.querySelectorAll('video');
+          videos.forEach((video) => {
+            (video as HTMLVideoElement).style.objectFit = 'contain';
+          });
+        }
+      });
+    });
+  });
+  
+  videoObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function stopVideoObserver() {
+  if (videoObserver) {
+    videoObserver.disconnect();
+    videoObserver = null;
+  }
+}
+
+// Listen for fullscreen state from main process
+ipcRenderer.on("set-fullscreen-state", (_event, state: boolean) => {
+  const wasFullscreen = isFullscreenActive;
+  isFullscreenActive = state;
+  
+  if (state && !wasFullscreen) {
+    // Entering fullscreen
+    fullscreenElement = document.documentElement; // Assume whole document
+    
+    // Apply object-fit: contain to all video elements to prevent cropping
+    applyVideoFitStyle('contain');
+    
+    // Force a resize event to make sure the page knows about the new size
+    window.dispatchEvent(new Event('resize'));
+    
+    const event = new Event("fullscreenchange", { bubbles: true });
+    document.dispatchEvent(event);
+  } else if (!state && wasFullscreen) {
+    // Exiting fullscreen
+    fullscreenElement = null;
+    
+    // Restore original object-fit style
+    applyVideoFitStyle('');
+    
+    // Force a resize event
+    window.dispatchEvent(new Event('resize'));
+    
+    const event = new Event("fullscreenchange", { bubbles: true });
+    document.dispatchEvent(event);
+  }
+});
+
+// Override fullscreenElement getter
+Object.defineProperty(Document.prototype, "fullscreenElement", {
+  get: function(this: Document): Element | null {
+    return fullscreenElement;
+  },
+  configurable: true,
+});
+
+// Override webkitFullscreenElement getter
+Object.defineProperty(Document.prototype, "webkitFullscreenElement", {
+  get: function(this: Document): Element | null {
+    return fullscreenElement;
+  },
+  configurable: true,
+});
+
+// Store original screen dimensions
+const originalScreenWidth = window.screen.width;
+const originalScreenHeight = window.screen.height;
+
+// Override screen.width and screen.height to match window size in fullscreen
+Object.defineProperty(window.screen, "width", {
+  get: function(): number {
+    // In fullscreen mode, return window size instead of actual screen size
+    if (isFullscreenActive) {
+      return window.innerWidth;
+    }
+    return originalScreenWidth;
+  },
+  configurable: true,
+});
+
+Object.defineProperty(window.screen, "height", {
+  get: function(): number {
+    // In fullscreen mode, return window size instead of actual screen size
+    if (isFullscreenActive) {
+      return window.innerHeight;
+    }
+    return originalScreenHeight;
+  },
+  configurable: true,
+});
+
+// Also override availWidth and availHeight
+Object.defineProperty(window.screen, "availWidth", {
+  get: function(): number {
+    if (isFullscreenActive) {
+      return window.innerWidth;
+    }
+    return originalScreenWidth;
+  },
+  configurable: true,
+});
+
+Object.defineProperty(window.screen, "availHeight", {
+  get: function(): number {
+    if (isFullscreenActive) {
+      return window.innerHeight;
+    }
+    return originalScreenHeight;
+  },
+  configurable: true,
+});
+
+console.log("[Preload] ✓ Fullscreen API polyfill installed (with screen size override)");
+
+// ============================================================================
+// Theme Color Extraction
+// ============================================================================
+
 // Extract theme color safely when DOM is ready
 function extractThemeColor(): string | null {
   try {

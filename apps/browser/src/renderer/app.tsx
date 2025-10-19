@@ -17,6 +17,7 @@ function App() {
   );
   const [showTabOverview, setShowTabOverview] = useState(false);
   const [tabCount, setTabCount] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const webContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize and listen for system theme changes
@@ -59,6 +60,19 @@ function App() {
     };
   }, []);
 
+  // Listen for fullscreen mode changes
+  useEffect(() => {
+    const cleanup = window.electronAPI?.onFullscreenModeChanged(
+      (fullscreen: boolean) => {
+        setIsFullscreen(fullscreen);
+      }
+    );
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
   // Track tab count
   useEffect(() => {
     // Get initial tab count
@@ -73,27 +87,28 @@ function App() {
       (data: { tabId: string; tabs: any[] }) => {
         setTabCount(data.tabs.length);
 
-        // Set bounds from renderer when tab changes
-        if (webContainerRef.current) {
-          const rect = webContainerRef.current.getBoundingClientRect();
-          const statusBarHeight = 58;
-          const statusBarWidth = 58;
+        // Set bounds from renderer when tab changes (skip in fullscreen mode)
+        // TEMPORARILY DISABLED FOR DEBUGGING
+        // if (webContainerRef.current && !isFullscreen) {
+        //   const rect = webContainerRef.current.getBoundingClientRect();
+        //   const statusBarHeight = 58;
+        //   const statusBarWidth = 58;
 
-          window.electronAPI?.webContents.setBounds({
-            x: Math.round(
-              rect.x + (orientation === "landscape" ? statusBarWidth : 0)
-            ),
-            y: Math.round(
-              rect.y + (orientation === "landscape" ? 0 : statusBarHeight)
-            ),
-            width: Math.round(
-              rect.width - (orientation === "landscape" ? statusBarWidth : 0)
-            ),
-            height: Math.round(
-              rect.height - (orientation === "landscape" ? 0 : statusBarHeight)
-            ),
-          });
-        }
+        //   window.electronAPI?.webContents.setBounds({
+        //     x: Math.round(
+        //       rect.x + (orientation === "landscape" ? statusBarWidth : 0)
+        //     ),
+        //     y: Math.round(
+        //       rect.y + (orientation === "landscape" ? 0 : statusBarHeight)
+        //     ),
+        //     width: Math.round(
+        //       rect.width - (orientation === "landscape" ? statusBarWidth : 0)
+        //     ),
+        //     height: Math.round(
+        //       rect.height - (orientation === "landscape" ? 0 : statusBarHeight)
+        //     ),
+        //   });
+        // }
       }
     );
 
@@ -519,6 +534,7 @@ function App() {
         themeColor={themeColor}
         textColor={textColor}
         showTabOverview={showTabOverview}
+        isFullscreen={isFullscreen}
         tabOverviewContent={
           <TabOverview
             theme={systemTheme}

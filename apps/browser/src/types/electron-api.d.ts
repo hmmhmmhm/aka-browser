@@ -26,7 +26,7 @@ interface Bounds {
   height: number;
 }
 
-interface ElectronAPI {
+export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
   minimizeWindow: () => void;
@@ -40,13 +40,20 @@ interface ElectronAPI {
   onWebviewReload: (callback: () => void) => () => void;
 
   // Theme detection
-  getSystemTheme: () => Promise<'light' | 'dark'>;
-  onThemeChanged: (callback: (theme: 'light' | 'dark') => void) => () => void;
+  getSystemTheme: () => Promise<"light" | "dark">;
+  onThemeChanged: (callback: (theme: "light" | "dark") => void) => () => void;
 
   // Orientation APIs
-  getOrientation: () => Promise<'portrait' | 'landscape'>;
+  getOrientation: () => Promise<"portrait" | "landscape">;
   toggleOrientation: () => Promise<void>;
-  onOrientationChanged: (callback: (orientation: 'portrait' | 'landscape') => void) => () => void;
+  onOrientationChanged: (
+    callback: (orientation: "portrait" | "landscape") => void
+  ) => () => void;
+
+  // Fullscreen mode listener
+  onFullscreenModeChanged: (
+    callback: (isFullscreen: boolean) => void
+  ) => () => void;
 
   // Tab management APIs
   tabs: {
@@ -81,7 +88,9 @@ interface ElectronAPI {
     onDidNavigate: (callback: (url: string) => void) => () => void;
     onDidNavigateInPage: (callback: (url: string) => void) => () => void;
     onDomReady: (callback: () => void) => () => void;
-    onDidFailLoad: (callback: (errorCode: number, errorDescription: string) => void) => () => void;
+    onDidFailLoad: (
+      callback: (errorCode: number, errorDescription: string) => void
+    ) => () => void;
     onRenderProcessGone: (callback: (details: any) => void) => () => void;
   };
 }

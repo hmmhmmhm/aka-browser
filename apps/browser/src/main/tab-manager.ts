@@ -6,7 +6,12 @@ import { WebContentsView, Menu } from "electron";
 import path from "path";
 import fs from "fs";
 import { Tab, AppState } from "./types";
-import { isValidUrl, sanitizeUrl, getUserAgentForUrl, logSecurityEvent } from "./security";
+import {
+  isValidUrl,
+  sanitizeUrl,
+  getUserAgentForUrl,
+  logSecurityEvent,
+} from "./security";
 import { ThemeColorCache } from "./theme-cache";
 
 export class TabManager {
@@ -26,6 +31,9 @@ export class TabManager {
 
     const webviewPreloadPath = path.join(__dirname, "..", "webview-preload.js");
     const hasWebviewPreload = fs.existsSync(webviewPreloadPath);
+
+    console.log("[TabManager] Creating tab with preload:", webviewPreloadPath);
+    console.log("[TabManager] Preload exists:", hasWebviewPreload);
 
     const view = new WebContentsView({
       webPreferences: {
@@ -48,8 +56,8 @@ export class TabManager {
         permission: string,
         callback: (result: boolean) => void
       ) => {
-        if (permission === "media") {
-          callback(true); // Allow media permissions for DRM
+        if (permission === "media" || permission === "fullscreen") {
+          callback(true); // Allow media and fullscreen permissions
         } else {
           callback(false);
         }
@@ -88,7 +96,9 @@ export class TabManager {
 
     // Hide current active tab and capture its preview
     if (this.state.activeTabId && this.state.activeTabId !== tabId) {
-      const currentTab = this.state.tabs.find((t) => t.id === this.state.activeTabId);
+      const currentTab = this.state.tabs.find(
+        (t) => t.id === this.state.activeTabId
+      );
       if (currentTab) {
         // Capture preview before hiding
         this.captureTabPreview(this.state.activeTabId).catch((err) => {
@@ -234,7 +244,10 @@ export class TabManager {
   /**
    * Setup WebContentsView event handlers
    */
-  private setupWebContentsViewHandlers(view: WebContentsView, tabId: string): void {
+  private setupWebContentsViewHandlers(
+    view: WebContentsView,
+    tabId: string
+  ): void {
     const contents = view.webContents;
 
     // Send initial orientation to the new webview when DOM is ready
@@ -285,7 +298,10 @@ export class TabManager {
           url: navigationUrl,
         });
         if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-          this.state.mainWindow.webContents.send("navigation-blocked", navigationUrl);
+          this.state.mainWindow.webContents.send(
+            "navigation-blocked",
+            navigationUrl
+          );
         }
       } else {
         const userAgent = getUserAgentForUrl(navigationUrl);
@@ -310,12 +326,254 @@ export class TabManager {
     });
 
     this.setupNavigationHandlers(contents, tabId);
+    this.setupFullscreenHandlers(contents, tabId);
+  }
+
+  /**
+   * Setup fullscreen event handlers using Electron's native events (Plan 1.5 - Correct approach)
+   * Note: We update bounds with gaps and hide status bar in fullscreen mode
+   */
+  private setupFullscreenHandlers(
+    contents: Electron.WebContents,
+    tabId: string
+  ): void {
+    // Listen for HTML fullscreen API events from Electron
+    contents.on("enter-html-full-screen", () => {
+      const tab = this.state.tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      const timestamp = new Date().toISOString().split("T")[1].slice(0, -1);
+      console.log(
+        `[Fullscreen][${timestamp}] enter-html-full-screen event received`
+      );
+
+      // Mark tab as fullscreen (for state tracking)
+      tab.isFullscreen = true;
+
+      // Update bounds with gaps and hide status bar
+      if (this.state.mainWindow) {
+        const windowBounds = this.state.mainWindow.getBounds();
+        const topBarHeight = 40; // TOP_BAR_HEIGHT
+        const deviceFramePadding = 15; // Device frame outer padding
+        const deviceBorderRadius = 32; // Device frame border radius
+
+        // Calculate safe gap to avoid rounded corners
+        // Adjust these values to fine-tune fullscreen positioning:
+        // - Increase to move content away from frame edges
+        // - Decrease to make content larger (closer to frame edges)
+        const fullscreenGapVertical =
+          deviceFramePadding + deviceBorderRadius + 20; // ~67px (Portrait: top/bottom gap)
+        const fullscreenGapHorizontal =
+          deviceFramePadding + deviceBorderRadius + 10; // ~57px (Landscape: left/right gap)
+
+        // Determine orientation based on actual window dimensions (not cached state)
+        const isCurrentlyLandscape = windowBounds.width > windowBounds.height;
+
+        if (isCurrentlyLandscape) {
+          // Landscape: gap on left and right to avoid rounded corners
+          // Note: We ignore status bar space in fullscreen mode
+          const bounds = {
+            x: fullscreenGapHorizontal - 30,
+            y: topBarHeight + deviceFramePadding,
+            width: windowBounds.width - fullscreenGapHorizontal * 2,
+            height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
+          };
+          tab.view.setBounds(bounds);
+        } else {
+          // Portrait: gap on top and bottom to avoid rounded corners
+          const bounds = {
+            x: deviceFramePadding,
+            y: topBarHeight + fullscreenGapVertical - 30,
+            width: windowBounds.width - deviceFramePadding * 2,
+            height:
+              windowBounds.height -
+              topBarHeight -
+              fullscreenGapVertical -
+              fullscreenGapVertical,
+          };
+          tab.view.setBounds(bounds);
+        }
+
+        // Notify renderer to hide status bar
+        this.state.mainWindow.webContents.send("fullscreen-mode-changed", true);
+
+        // Force a layout recalculation by resizing the main window
+        // This ensures WebContentsView properly recalculates its size
+        const windowBoundsNow = this.state.mainWindow.getBounds();
+        this.state.mainWindow.setBounds({
+          ...windowBoundsNow,
+          height: windowBoundsNow.height + 1,
+        });
+
+        // Immediately restore to correct size and reapply adjusted bounds
+        this.state.mainWindow.setBounds(windowBoundsNow);
+        
+        // Reapply the adjusted bounds after window resize
+        if (isCurrentlyLandscape) {
+          const adjustedBounds = {
+            x: fullscreenGapHorizontal - 30,
+            y: topBarHeight + deviceFramePadding,
+            width: windowBounds.width - fullscreenGapHorizontal * 2,
+            height: windowBounds.height - topBarHeight - deviceFramePadding * 2,
+          };
+          tab.view.setBounds(adjustedBounds);
+        } else {
+          const adjustedBounds = {
+            x: deviceFramePadding,
+            y: topBarHeight + fullscreenGapVertical - 30,
+            width: windowBounds.width - deviceFramePadding * 2,
+            height:
+              windowBounds.height -
+              topBarHeight -
+              fullscreenGapVertical -
+              fullscreenGapVertical,
+          };
+          tab.view.setBounds(adjustedBounds);
+        }
+
+        // Send fullscreen state immediately
+        if (!tab.view.webContents.isDestroyed()) {
+          tab.view.webContents.send("set-fullscreen-state", true);
+        }
+      }
+
+    });
+
+    contents.on("leave-html-full-screen", () => {
+      const tab = this.state.tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      // Clear fullscreen state
+      tab.isFullscreen = false;
+
+      // Restore normal bounds
+      if (this.state.mainWindow) {
+        this.state.mainWindow.webContents.send(
+          "fullscreen-mode-changed",
+          false
+        );
+
+        // Restore normal WebContentsView bounds FIRST
+        const windowBounds = this.state.mainWindow.getBounds();
+        const topBarHeight = 40; // TOP_BAR_HEIGHT
+        const statusBarHeight = 58;
+        const statusBarWidth = 58;
+        const frameHalf = 15 / 2; // Device frame padding (half on each side)
+
+        // Determine orientation based on actual window dimensions (not cached state)
+        const isCurrentlyLandscape = windowBounds.width > windowBounds.height;
+
+        if (isCurrentlyLandscape) {
+          // Landscape mode: status bar is on the LEFT side
+          const bounds = {
+            x: statusBarWidth,
+            y: Math.round(topBarHeight + frameHalf),
+            width: Math.round(windowBounds.width - statusBarWidth - frameHalf),
+            height: Math.round(
+              windowBounds.height - topBarHeight - frameHalf * 2
+            ),
+          };
+          tab.view.setBounds(bounds);
+        } else {
+          // Portrait mode: status bar is on the TOP
+          const bounds = {
+            x: Math.round(frameHalf),
+            y: Math.round(topBarHeight + statusBarHeight + frameHalf),
+            width: Math.round(windowBounds.width - frameHalf * 2),
+            height: Math.round(
+              windowBounds.height -
+                topBarHeight -
+                statusBarHeight -
+                frameHalf * 2
+            ),
+          };
+          tab.view.setBounds(bounds);
+        }
+
+        // Force a layout recalculation by resizing the main window
+        const windowBoundsNow = this.state.mainWindow.getBounds();
+        this.state.mainWindow.setBounds({
+          ...windowBoundsNow,
+          height: windowBoundsNow.height + 1,
+        });
+
+        // Immediately restore to correct size and reapply adjusted bounds
+        this.state.mainWindow.setBounds(windowBoundsNow);
+        
+        // Reapply the adjusted bounds after window resize
+        if (isCurrentlyLandscape) {
+          const adjustedBounds = {
+            x: statusBarWidth,
+            y: Math.round(topBarHeight + frameHalf),
+            width: Math.round(windowBounds.width - statusBarWidth - frameHalf),
+            height: Math.round(
+              windowBounds.height - topBarHeight - frameHalf * 2
+            ),
+          };
+          tab.view.setBounds(adjustedBounds);
+        } else {
+          const adjustedBounds = {
+            x: Math.round(frameHalf),
+            y: Math.round(topBarHeight + statusBarHeight + frameHalf),
+            width: Math.round(windowBounds.width - frameHalf * 2),
+            height: Math.round(
+              windowBounds.height -
+                topBarHeight -
+                statusBarHeight -
+                frameHalf * 2
+            ),
+          };
+          tab.view.setBounds(adjustedBounds);
+        }
+
+        // Send fullscreen state immediately
+        if (!tab.view.webContents.isDestroyed()) {
+          tab.view.webContents.send("set-fullscreen-state", false);
+        }
+      }
+
+    });
+  }
+
+  /**
+   * Exit fullscreen for a specific tab (called by ESC key handler)
+   */
+  exitFullscreen(tabId: string): void {
+    const tab = this.state.tabs.find((t) => t.id === tabId);
+    if (!tab || !tab.isFullscreen) return;
+
+    // Execute JavaScript to exit fullscreen in the web page
+    tab.view.webContents
+      .executeJavaScript(
+        `
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    `
+      )
+      .catch((err) => {
+        console.error("[Fullscreen] Failed to exit fullscreen:", err);
+      });
+
+    // Notify webview-preload to update state
+    if (!tab.view.webContents.isDestroyed()) {
+      tab.view.webContents.send("webview-fullscreen-exited");
+    }
   }
 
   /**
    * Setup navigation event handlers
    */
-  private setupNavigationHandlers(contents: Electron.WebContents, tabId: string): void {
+  private setupNavigationHandlers(
+    contents: Electron.WebContents,
+    tabId: string
+  ): void {
     contents.on("did-start-loading", () => {
       try {
         const url = contents.getURL();
@@ -380,7 +638,10 @@ export class TabManager {
         tab.title = contents.getTitle() || url;
       }
 
-      this.state.mainWindow?.webContents.send("webcontents-did-navigate-in-page", url);
+      this.state.mainWindow?.webContents.send(
+        "webcontents-did-navigate-in-page",
+        url
+      );
 
       if (this.state.activeTabId === tabId && this.state.mainWindow) {
         this.state.mainWindow.webContents.send("tabs-updated", {
@@ -411,7 +672,10 @@ export class TabManager {
     );
 
     contents.on("render-process-gone", (event: any, details: any) => {
-      this.state.mainWindow?.webContents.send("webcontents-render-process-gone", details);
+      this.state.mainWindow?.webContents.send(
+        "webcontents-render-process-gone",
+        details
+      );
     });
   }
 }
