@@ -78,11 +78,11 @@ function PhoneFrame({
       {/* Device frame - visual only, clicks pass through */}
       <div className="absolute top-0 left-0 w-full h-full rounded-[47px] bg-[#11111d] box-border pointer-events-none p-px transition-transform duration-300 overflow-hidden">
         <div className="relative w-full h-full rounded-[46px] bg-[#54545b] box-border pointer-events-none p-px overflow-hidden before:content-[''] before:absolute before:top-px before:left-px before:right-px before:bottom-px before:rounded-[45px] before:bg-[#525252] before:pointer-events-none before:z-0 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:right-0.5 after:bottom-0.5 after:rounded-[44px] after:bg-[#2b2c2c] after:pointer-events-none after:z-0">
-          <div className="absolute top-[15px] left-[15px] right-[15px] bottom-[15px] rounded-[32px] overflow-hidden z-10 bg-transparent pointer-events-none">
+          <div className="absolute top-[15px] left-[15px] right-[15px] bottom-[15px] rounded-[32px] overflow-hidden z-10 bg-black pointer-events-none">
             {/* Web content area - positioned for WebContentsView */}
             <div 
               ref={webContainerRef}
-              className="absolute top-0 left-0 right-0 bottom-0 bg-transparent overflow-hidden rounded-[32px] pointer-events-none"
+              className="absolute top-0 left-0 right-0 bottom-0 bg-black overflow-hidden rounded-[32px] pointer-events-none"
             />
             {/* Status bar - React component on top (hidden in fullscreen) */}
             {!isFullscreen && (
