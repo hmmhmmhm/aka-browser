@@ -157,5 +157,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () =>
         ipcRenderer.removeListener("webcontents-render-process-gone", listener);
     },
+    onHttpError: (
+      callback: (
+        statusCode: number,
+        statusText: string,
+        url: string
+      ) => void
+    ) => {
+      const listener = (
+        _event: any,
+        statusCode: number,
+        statusText: string,
+        url: string
+      ) => callback(statusCode, statusText, url);
+      ipcRenderer.on("webcontents-http-error", listener);
+      return () =>
+        ipcRenderer.removeListener("webcontents-http-error", listener);
+    },
   },
 });

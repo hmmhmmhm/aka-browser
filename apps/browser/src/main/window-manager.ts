@@ -2,7 +2,7 @@
  * Window management functionality
  */
 
-import { BrowserWindow, screen } from "electron";
+import { BrowserWindow, screen, app } from "electron";
 import path from "path";
 import { AppState } from "./types";
 import {
@@ -250,7 +250,11 @@ export class WindowManager {
     if (process.env.NODE_ENV === "development") {
       this.state.mainWindow.loadURL("http://localhost:5173");
     } else {
-      this.state.mainWindow.loadFile(path.join(__dirname, "../dist-renderer/index.html"));
+      // In production, use app.getAppPath() to get the correct base path
+      // Files are at: app.asar/dist-renderer/index.html
+      const rendererPath = path.join(app.getAppPath(), "dist-renderer", "index.html");
+      console.log(`[WindowManager] Loading renderer from: ${rendererPath}`);
+      this.state.mainWindow.loadFile(rendererPath);
     }
 
     // Maintain aspect ratio on resize

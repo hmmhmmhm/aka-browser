@@ -662,12 +662,78 @@ export class TabManager {
 
     contents.on(
       "did-fail-load",
-      (event: any, errorCode: number, errorDescription: string) => {
-        this.state.mainWindow?.webContents.send(
-          "webcontents-did-fail-load",
-          errorCode,
-          errorDescription
+      (event: any, errorCode: number, errorDescription: string, validatedURL: string, isMainFrame: boolean) => {
+        // Ignore errorCode -3 (ERR_ABORTED) as it's usually from user navigation
+        // Also ignore if it's not the main frame
+        if (errorCode === -3 || !isMainFrame) {
+          return;
+        }
+
+        console.log(
+          `[TabManager] Page load failed: ${errorCode} (${errorDescription}) for ${validatedURL}`
         );
+
+        // Load error page with details
+        // Use app.getAppPath() for correct path in both dev and production
+        const { app } = require("electron");
+        const errorPagePath = path.join(
+          app.getAppPath(),
+          "assets",
+          "error-page.html"
+        );
+
+        if (fs.existsSync(errorPagePath)) {
+          const statusText = this.getNetworkErrorText(errorCode, errorDescription);
+          
+          // Read the error page HTML and inject parameters
+          try {
+            let errorPageHtml = fs.readFileSync(errorPagePath, 'utf-8');
+            
+            // Create query string for error details
+            const queryParams = new URLSearchParams({
+              statusCode: Math.abs(errorCode).toString(),
+              statusText: statusText,
+              url: validatedURL,
+              method: 'GET',
+              timestamp: new Date().toISOString()
+            });
+            
+            // Inject query parameters into the HTML by replacing the script section
+            errorPageHtml = errorPageHtml.replace(
+              'window.location.search',
+              `"?${queryParams.toString()}"`
+            );
+            
+            console.log(`[TabManager] Loading error page for error ${errorCode}`);
+
+            // Use setTimeout with a longer delay to ensure the failed load is completely finished
+            setTimeout(() => {
+              if (!contents.isDestroyed()) {
+                console.log(`[TabManager] Attempting to load error page now`);
+                // Load as data URL to avoid file:// protocol restrictions
+                const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(errorPageHtml)}`;
+                contents.loadURL(dataUrl).then(() => {
+                  console.log(`[TabManager] Error page loaded successfully`);
+                }).catch((err) => {
+                  console.error(`[TabManager] Failed to load error page:`, err);
+                });
+              } else {
+                console.log(`[TabManager] Contents destroyed, cannot load error page`);
+              }
+            }, 100);
+
+            // Notify renderer about the error
+            this.state.mainWindow?.webContents.send(
+              "webcontents-did-fail-load",
+              errorCode,
+              errorDescription
+            );
+          } catch (err) {
+            console.error(`[TabManager] Failed to read error page:`, err);
+          }
+        } else {
+          console.error(`[TabManager] Error page not found at: ${errorPagePath}`);
+        }
       }
     );
 
@@ -677,5 +743,278 @@ export class TabManager {
         details
       );
     });
+
+    // Monitor HTTP response codes and show error page for non-200 responses
+    (contents as any).on(
+      "did-get-response-details",
+      (
+        event: any,
+        status: boolean,
+        newURL: string,
+        originalURL: string,
+        httpResponseCode: number,
+        requestMethod: string,
+        referrer: string,
+        headers: Record<string, string[]>,
+        resourceType: string
+      ) => {
+        // Only handle main frame navigation responses (not images, scripts, etc.)
+        if (resourceType !== "mainFrame") {
+          return;
+        }
+
+        // Check if response code is not in the 2xx success range
+        if (httpResponseCode < 200 || httpResponseCode >= 300) {
+          console.log(
+            `[TabManager] Non-success HTTP response: ${httpResponseCode} for ${originalURL}`
+          );
+
+          // Load error page with details
+          // Use app.getAppPath() for correct path in both dev and production
+          const { app } = require("electron");
+          const errorPagePath = path.join(
+            app.getAppPath(),
+            "assets",
+            "error-page.html"
+          );
+
+          // Check if error page exists
+          if (fs.existsSync(errorPagePath)) {
+            const statusText = this.getStatusText(httpResponseCode);
+            
+            // Read the error page HTML and inject parameters
+            try {
+              let errorPageHtml = fs.readFileSync(errorPagePath, 'utf-8');
+              
+              // Create query string for error details
+              const queryParams = new URLSearchParams({
+                statusCode: httpResponseCode.toString(),
+                statusText: statusText,
+                url: originalURL,
+                method: requestMethod,
+                timestamp: new Date().toISOString()
+              });
+              
+              // Inject query parameters into the HTML by replacing the script section
+              errorPageHtml = errorPageHtml.replace(
+                'window.location.search',
+                `"?${queryParams.toString()}"`
+              );
+              
+              // Load as data URL to avoid file:// protocol restrictions
+              const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(errorPageHtml)}`;
+              
+              // Load the error page
+              contents.loadURL(dataUrl).catch((err) => {
+                console.error("Failed to load error page:", err);
+              });
+
+              // Notify renderer about the error
+              this.state.mainWindow?.webContents.send(
+                "webcontents-http-error",
+                httpResponseCode,
+                statusText,
+                originalURL
+              );
+            } catch (err) {
+              console.error("Failed to read error page:", err);
+            }
+          }
+        }
+      }
+    );
+  }
+
+  /**
+   * Get human-readable text for network errors
+   */
+  private getNetworkErrorText(errorCode: number, errorDescription: string): string {
+    // Common Chromium network error codes
+    const networkErrors: Record<number, string> = {
+      [-1]: "Unknown Error",
+      [-2]: "Failed",
+      [-3]: "Aborted",
+      [-4]: "Invalid Argument",
+      [-5]: "Invalid Handle",
+      [-6]: "File Not Found",
+      [-7]: "Timed Out",
+      [-10]: "Access Denied",
+      [-21]: "Network Changed",
+      [-23]: "Data Error",
+      [-100]: "Connection Closed",
+      [-101]: "Connection Reset",
+      [-102]: "Connection Refused",
+      [-103]: "Connection Aborted",
+      [-104]: "Connection Failed",
+      [-105]: "Name Not Resolved",
+      [-106]: "Internet Disconnected",
+      [-107]: "SSL Protocol Error",
+      [-108]: "Address Invalid",
+      [-109]: "Address Unreachable",
+      [-110]: "SSL Client Auth Cert Needed",
+      [-111]: "Tunnel Connection Failed",
+      [-112]: "No SSL Versions Enabled",
+      [-113]: "SSL Version or Cipher Mismatch",
+      [-114]: "SSL Renegotiation Requested",
+      [-115]: "Proxy Auth Unsupported",
+      [-116]: "Cert Error in SSL Renegotiation",
+      [-117]: "Bad SSL Client Auth Cert",
+      [-118]: "Connection Timed Out",
+      [-119]: "Host Resolver Queue Too Large",
+      [-120]: "SOCKS Connection Failed",
+      [-121]: "SOCKS Connection Host Unreachable",
+      [-200]: "Cert Common Name Invalid",
+      [-201]: "Cert Date Invalid",
+      [-202]: "Cert Authority Invalid",
+      [-203]: "Cert Contains Errors",
+      [-204]: "Cert No Revocation Mechanism",
+      [-205]: "Cert Unable to Check Revocation",
+      [-206]: "Cert Revoked",
+      [-207]: "Cert Invalid",
+      [-208]: "Cert Weak Signature Algorithm",
+      [-210]: "Cert Non Unique Name",
+      [-211]: "Cert Weak Key",
+      [-212]: "Cert Name Constraint Violation",
+      [-213]: "Cert Validity Too Long",
+      [-300]: "Invalid URL",
+      [-301]: "Disallowed URL Scheme",
+      [-302]: "Unknown URL Scheme",
+      [-310]: "Too Many Redirects",
+      [-320]: "Unsafe Redirect",
+      [-321]: "Unsafe Port",
+      [-322]: "Invalid Response",
+      [-323]: "Invalid Chunked Encoding",
+      [-324]: "Method Not Supported",
+      [-325]: "Unexpected Proxy Auth",
+      [-326]: "Empty Response",
+      [-327]: "Response Headers Too Big",
+      [-328]: "PAC Script Failed",
+      [-329]: "Request Range Not Satisfiable",
+      [-330]: "Malformed Identity",
+      [-331]: "Content Decoding Failed",
+      [-332]: "Network IO Suspended",
+      [-333]: "SYN Reply Not Received",
+      [-334]: "Encoding Conversion Failed",
+      [-335]: "Unrecognized FTP Directory Listing Format",
+      [-336]: "Invalid SPDY Stream",
+      [-337]: "No Supported Proxies",
+      [-338]: "SPDY Session Already Exists",
+      [-339]: "Limit Violation",
+      [-340]: "SPDY Protocol Error",
+      [-341]: "Invalid Auth Credentials",
+      [-342]: "Unsupported Auth Scheme",
+      [-343]: "Encoding Detection Failed",
+      [-344]: "Missing Auth Credentials",
+      [-345]: "Unexpected Security Library Status",
+      [-346]: "Misconfigured Auth Environment",
+      [-347]: "Undocumented Security Library Status",
+      [-348]: "Response Body Too Big Drain",
+      [-349]: "Response Headers Multiple Content Length",
+      [-350]: "Incomplete SPDY Headers",
+      [-351]: "PAC Not In DHCP",
+      [-352]: "Response Headers Multiple Content Disposition",
+      [-353]: "Response Headers Multiple Location",
+      [-354]: "SPDY Server Refused Stream",
+      [-355]: "SPDY Ping Failed",
+      [-356]: "Content Length Mismatch",
+      [-357]: "Incomplete Chunked Encoding",
+      [-358]: "QUIC Protocol Error",
+      [-359]: "Response Headers Truncated",
+      [-360]: "QUIC Handshake Failed",
+      [-361]: "SPDY Inadequate Transport Security",
+      [-362]: "SPDY Flow Control Error",
+      [-363]: "SPDY Stream Closed",
+      [-364]: "SPDY Frame Size Error",
+      [-365]: "SPDY Compression Error",
+      [-366]: "Proxy HTTP 1.1 Required",
+      [-367]: "Proxy HTTP2 or QUIC Required",
+      [-368]: "PAC Script Terminated",
+      [-370]: "Invalid HTTP Response",
+      [-371]: "Content Decoding Init Failed",
+      [-372]: "HTTP2 Compression Error",
+      [-373]: "HTTP2 Flow Control Error",
+      [-374]: "HTTP2 Frame Size Error",
+      [-375]: "HTTP2 Compression Error",
+      [-376]: "HTTP2 RST Stream No Error Received",
+      [-377]: "HTTP2 Pushed Stream Not Available",
+      [-378]: "HTTP2 Claimed Pushed Stream Reset By Server",
+      [-379]: "Too Many Retries",
+      [-380]: "HTTP2 Stream Closed",
+      [-381]: "HTTP2 Client Refused Stream",
+      [-382]: "HTTP2 Pushed Response Does Not Match",
+      [-400]: "Cache Miss",
+      [-401]: "Cache Read Failure",
+      [-402]: "Cache Write Failure",
+      [-403]: "Cache Operation Not Supported",
+      [-404]: "Cache Open Failure",
+      [-405]: "Cache Create Failure",
+      [-406]: "Cache Race",
+      [-407]: "Cache Checksum Read Failure",
+      [-408]: "Cache Checksum Mismatch",
+      [-409]: "Cache Lock Timeout",
+      [-501]: "Insecure Response",
+      [-502]: "No Private Key for Cert",
+      [-503]: "Add User Cert Failed",
+      [-800]: "DNS Malformed Response",
+      [-801]: "DNS Server Requires TCP",
+      [-802]: "DNS Server Failed",
+      [-803]: "DNS Transaction ID Mismatch",
+      [-804]: "DNS Name HTTPS Only",
+      [-805]: "DNS Request Cancelled",
+    };
+
+    return networkErrors[errorCode] || errorDescription || "Network Error";
+  }
+
+  /**
+   * Get human-readable status text for HTTP status codes
+   */
+  private getStatusText(statusCode: number): string {
+    const statusTexts: Record<number, string> = {
+      // 4xx Client Errors
+      400: "Bad Request",
+      401: "Unauthorized",
+      402: "Payment Required",
+      403: "Forbidden",
+      404: "Not Found",
+      405: "Method Not Allowed",
+      406: "Not Acceptable",
+      407: "Proxy Authentication Required",
+      408: "Request Timeout",
+      409: "Conflict",
+      410: "Gone",
+      411: "Length Required",
+      412: "Precondition Failed",
+      413: "Payload Too Large",
+      414: "URI Too Long",
+      415: "Unsupported Media Type",
+      416: "Range Not Satisfiable",
+      417: "Expectation Failed",
+      418: "I'm a teapot",
+      421: "Misdirected Request",
+      422: "Unprocessable Entity",
+      423: "Locked",
+      424: "Failed Dependency",
+      425: "Too Early",
+      426: "Upgrade Required",
+      428: "Precondition Required",
+      429: "Too Many Requests",
+      431: "Request Header Fields Too Large",
+      451: "Unavailable For Legal Reasons",
+      // 5xx Server Errors
+      500: "Internal Server Error",
+      501: "Not Implemented",
+      502: "Bad Gateway",
+      503: "Service Unavailable",
+      504: "Gateway Timeout",
+      505: "HTTP Version Not Supported",
+      506: "Variant Also Negotiates",
+      507: "Insufficient Storage",
+      508: "Loop Detected",
+      510: "Not Extended",
+      511: "Network Authentication Required",
+    };
+
+    return statusTexts[statusCode] || "Unknown Error";
   }
 }

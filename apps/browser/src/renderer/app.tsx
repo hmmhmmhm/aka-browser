@@ -400,6 +400,17 @@ function App() {
       stopThemeColorMonitoring();
     };
 
+    const handleHttpError = (
+      statusCode: number,
+      statusText: string,
+      url: string
+    ) => {
+      console.log(
+        `[App] HTTP Error: ${statusCode} ${statusText} for ${url}`
+      );
+      stopThemeColorMonitoring();
+    };
+
     const cleanupDomReady =
       window.electronAPI?.webContents.onDomReady(handleDomReady);
     const cleanupDidNavigate =
@@ -418,6 +429,8 @@ function App() {
       );
     const cleanupDidFailLoad =
       window.electronAPI?.webContents.onDidFailLoad(handleDidFailLoad);
+    const cleanupHttpError =
+      window.electronAPI?.webContents.onHttpError(handleHttpError);
 
     // Initial page info fetch after a delay to ensure WebContentsView is ready
     setTimeout(() => {
@@ -434,6 +447,7 @@ function App() {
       if (cleanupDidStopLoading) cleanupDidStopLoading();
       if (cleanupRenderProcessGone) cleanupRenderProcessGone();
       if (cleanupDidFailLoad) cleanupDidFailLoad();
+      if (cleanupHttpError) cleanupHttpError();
     };
   }, []);
 

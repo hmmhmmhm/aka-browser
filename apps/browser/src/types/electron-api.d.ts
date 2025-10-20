@@ -98,6 +98,9 @@ export interface ElectronAPI {
       callback: (errorCode: number, errorDescription: string) => void
     ) => () => void;
     onRenderProcessGone: (callback: (details: any) => void) => () => void;
+    onHttpError: (
+      callback: (statusCode: number, statusText: string, url: string) => void
+    ) => () => void;
   };
 }
 

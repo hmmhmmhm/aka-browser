@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Error</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 20px) env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 20px);
+        }
+
+        .error-container {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px 20px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .error-code {
+            font-size: 72px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .error-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            opacity: 0.95;
+        }
+
+        .error-description {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            opacity: 0.85;
+        }
+
+        .error-url {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .error-actions {
+            margin-top: 30px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-primary:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .error-details {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            text-align: left;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .error-details summary {
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 10px;
+            user-select: none;
+        }
+
+        .error-details summary:hover {
+            opacity: 1;
+        }
+
+        .error-details pre {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <div class="error-code" id="errorCode">ERROR</div>
+        <h1 class="error-title" id="errorTitle">Something went wrong</h1>
+        <p class="error-description" id="errorDescription">
+            The page you're trying to access encountered an error.
+        </p>
+        <div class="error-url" id="errorUrl"></div>
+        
+        <div class="error-actions">
+            <button class="btn btn-primary" onclick="reloadPage()">
+                🔄 Try Again
+            </button>
+            <button class="btn btn-secondary" onclick="goBack()">
+                ← Go Back
+            </button>
+            <button class="btn btn-secondary" onclick="goHome()">
+                🏠 Go Home
+            </button>
+        </div>
+
+        <details class="error-details">
+            <summary>Technical Details</summary>
+            <pre id="errorDetailsContent"></pre>
+        </details>
+    </div>
+
+    <script>
+        // Parse error information from URL parameters
+        function getErrorInfo() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                statusCode: params.get('statusCode') || 'UNKNOWN',
+                statusText: params.get('statusText') || 'Unknown Error',
+                url: params.get('url') || window.location.href,
+                method: params.get('method') || 'GET',
+                timestamp: params.get('timestamp') || new Date().toISOString()
+            };
+        }
+
+        // Get error message based on status code
+        function getErrorMessage(statusCode) {
+            const code = parseInt(statusCode);
+            
+            // Network errors (negative codes or specific ranges)
+            if (code === 105) {
+                return { title: 'Cannot Resolve Domain', desc: 'The domain name could not be found. Please check the URL and try again.' };
+            }
+            if (code === 106) {
+                return { title: 'No Internet Connection', desc: 'Your device is not connected to the internet.' };
+            }
+            if (code === 102) {
+                return { title: 'Connection Refused', desc: 'The server refused the connection.' };
+            }
+            if (code === 7 || code === 118) {
+                return { title: 'Connection Timed Out', desc: 'The server took too long to respond.' };
+            }
+            if (code >= 100 && code < 200) {
+                return { title: 'Connection Error', desc: 'Unable to connect to the server. Please check your connection and try again.' };
+            }
+            if (code >= 200 && code < 300) {
+                return { title: 'Certificate Error', desc: 'There is a problem with the website\'s security certificate.' };
+            }
+            if (code >= 300 && code < 400) {
+                return { title: 'Invalid URL', desc: 'The URL you entered is not valid or cannot be accessed.' };
+            }
+            
+            // HTTP errors
+            if (code >= 400 && code < 500) {
+                const messages = {
+                    400: { title: 'Bad Request', desc: 'The server couldn\'t understand your request.' },
+                    401: { title: 'Unauthorized', desc: 'You need to authenticate to access this resource.' },
+                    403: { title: 'Forbidden', desc: 'You don\'t have permission to access this resource.' },
+                    404: { title: 'Page Not Found', desc: 'The page you\'re looking for doesn\'t exist.' },
+                    405: { title: 'Method Not Allowed', desc: 'The request method is not supported for this resource.' },
+                    408: { title: 'Request Timeout', desc: 'The server timed out waiting for the request.' },
+                    429: { title: 'Too Many Requests', desc: 'You\'ve made too many requests. Please try again later.' },
+                };
+                return messages[code] || { title: 'Client Error', desc: 'There was a problem with your request.' };
+            }
+            
+            if (code >= 500 && code < 600) {
+                const messages = {
+                    500: { title: 'Internal Server Error', desc: 'The server encountered an unexpected error.' },
+                    502: { title: 'Bad Gateway', desc: 'The server received an invalid response from upstream.' },
+                    503: { title: 'Service Unavailable', desc: 'The server is temporarily unavailable. Try again later.' },
+                    504: { title: 'Gateway Timeout', desc: 'The server didn\'t receive a timely response from upstream.' },
+                };
+                return messages[code] || { title: 'Server Error', desc: 'The server encountered an error processing your request.' };
+            }
+            
+            return { title: 'Error', desc: 'An unexpected error occurred.' };
+        }
+
+        // Initialize error page
+        function initErrorPage() {
+            const errorInfo = getErrorInfo();
+            const errorMessage = getErrorMessage(errorInfo.statusCode);
+            
+            // Update UI
+            document.getElementById('errorCode').textContent = errorInfo.statusCode;
+            document.getElementById('errorTitle').textContent = errorMessage.title;
+            document.getElementById('errorDescription').textContent = errorMessage.desc;
+            document.getElementById('errorUrl').textContent = decodeURIComponent(errorInfo.url);
+            
+            // Update technical details
+            const details = `Status Code: ${errorInfo.statusCode}
+Status Text: ${errorInfo.statusText}
+URL: ${decodeURIComponent(errorInfo.url)}
+Method: ${errorInfo.method}
+Timestamp: ${errorInfo.timestamp}`;
+            
+            document.getElementById('errorDetailsContent').textContent = details;
+            
+            // Update page title
+            document.title = `${errorInfo.statusCode} - ${errorMessage.title}`;
+        }
+
+        // Action handlers
+        function reloadPage() {
+            const errorInfo = getErrorInfo();
+            window.location.href = decodeURIComponent(errorInfo.url);
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        function goHome() {
+            window.location.href = 'https://www.google.com';
+        }
+
+        // Initialize on load
+        initErrorPage();
+    </script>
+</body>
+</html>
