@@ -26,7 +26,7 @@ export class TabManager {
   /**
    * Create a new tab
    */
-  createTab(url: string = "https://www.google.com"): Tab {
+  createTab(url: string = ""): Tab {
     const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     const webviewPreloadPath = path.join(__dirname, "..", "webview-preload.js");
@@ -78,10 +78,19 @@ export class TabManager {
     this.state.tabs.push(tab);
     this.setupWebContentsViewHandlers(view, tabId);
 
-    // Load URL
-    const sanitized = sanitizeUrl(url);
-    if (isValidUrl(sanitized)) {
-      view.webContents.loadURL(sanitized);
+    // Load URL or start page
+    if (!url || url.trim() === "") {
+      // Load start page for blank tabs
+      const { app } = require("electron");
+      const startPagePath = path.join(app.getAppPath(), "assets", "start-page.html");
+      view.webContents.loadFile(startPagePath).catch((err) => {
+        console.error("[TabManager] Failed to load start page:", err);
+      });
+    } else {
+      const sanitized = sanitizeUrl(url);
+      if (isValidUrl(sanitized)) {
+        view.webContents.loadURL(sanitized);
+      }
     }
 
     return tab;

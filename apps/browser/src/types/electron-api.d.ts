@@ -26,6 +26,15 @@ interface Bounds {
   height: number;
 }
 
+interface Bookmark {
+  id: string;
+  title: string;
+  url: string;
+  favicon?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
@@ -101,6 +110,19 @@ export interface ElectronAPI {
     onHttpError: (
       callback: (statusCode: number, statusText: string, url: string) => void
     ) => () => void;
+  };
+
+  // Bookmark management APIs
+  bookmarks: {
+    getAll: () => Promise<Bookmark[]>;
+    getById: (id: string) => Promise<Bookmark | undefined>;
+    isBookmarked: (url: string) => Promise<boolean>;
+    add: (title: string, url: string, favicon?: string) => Promise<Bookmark>;
+    update: (id: string, updates: Partial<Omit<Bookmark, "id" | "createdAt">>) => Promise<Bookmark | null>;
+    remove: (id: string) => Promise<boolean>;
+    removeByUrl: (url: string) => Promise<boolean>;
+    clear: () => Promise<void>;
+    onUpdate: (callback: () => void) => () => void;
   };
 }
 

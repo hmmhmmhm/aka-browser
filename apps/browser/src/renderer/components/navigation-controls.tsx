@@ -1,6 +1,9 @@
+import { MoreVertical } from 'lucide-react';
+
 interface NavigationControlsProps {
   onShowTabs: () => void;
   onRefresh: () => void;
+  onShowMenu: () => void;
   theme: 'light' | 'dark';
   tabCount: number;
 }
@@ -8,6 +11,7 @@ interface NavigationControlsProps {
 function NavigationControls({
   onShowTabs,
   onRefresh,
+  onShowMenu,
   theme,
   tabCount,
 }: NavigationControlsProps) {
@@ -43,6 +47,13 @@ function NavigationControls({
             {tabCount > 9 ? '9+' : tabCount}
           </span>
         )}
+      </button>
+      <button
+        onClick={onShowMenu}
+        title="Menu"
+        className={`${buttonBaseClass} ${buttonThemeClass}`}
+      >
+        <MoreVertical size={16} strokeWidth={2} />
       </button>
     </div>
   );

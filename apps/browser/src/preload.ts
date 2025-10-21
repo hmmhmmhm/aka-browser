@@ -175,4 +175,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
         ipcRenderer.removeListener("webcontents-http-error", listener);
     },
   },
+
+  // Bookmark management APIs
+  bookmarks: {
+    getAll: () => ipcRenderer.invoke("bookmarks-get-all"),
+    getById: (id: string) => ipcRenderer.invoke("bookmarks-get-by-id", id),
+    isBookmarked: (url: string) => ipcRenderer.invoke("bookmarks-is-bookmarked", url),
+    add: (title: string, url: string, favicon?: string) => 
+      ipcRenderer.invoke("bookmarks-add", title, url, favicon),
+    update: (id: string, updates: any) => 
+      ipcRenderer.invoke("bookmarks-update", id, updates),
+    remove: (id: string) => ipcRenderer.invoke("bookmarks-remove", id),
+    removeByUrl: (url: string) => ipcRenderer.invoke("bookmarks-remove-by-url", url),
+    clear: () => ipcRenderer.invoke("bookmarks-clear"),
+    onUpdate: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("bookmarks-updated", listener);
+      return () => ipcRenderer.removeListener("bookmarks-updated", listener);
+    },
+  },
 });

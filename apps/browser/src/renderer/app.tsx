@@ -4,20 +4,22 @@ import TopBar from "./components/top-bar";
 import PhoneFrame from "./components/phone-frame";
 import TabOverview from "./components/tab-overview";
 import Settings from "./components/settings";
+import MenuOverlay from "./components/menu-overlay";
 
 function App() {
   const [_time, setTime] = useState("9:41");
-  const [pageTitle, setPageTitle] = useState("Loading...");
-  const [pageDomain, setPageDomain] = useState("www.google.com");
+  const [pageTitle, setPageTitle] = useState("New Tab");
+  const [pageDomain, setPageDomain] = useState("");
   const [themeColor, setThemeColor] = useState("#ffffff");
   const [textColor, setTextColor] = useState("#000000");
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("dark");
-  const [currentUrl, setCurrentUrl] = useState("https://www.google.com");
+  const [currentUrl, setCurrentUrl] = useState("");
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     "portrait"
   );
   const [showTabOverview, setShowTabOverview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [tabCount, setTabCount] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const webContainerRef = useRef<HTMLDivElement>(null);
@@ -573,6 +575,20 @@ function App() {
     window.electronAPI?.webContents.setVisible(true);
   };
 
+  const handleShowMenu = () => {
+    setShowMenu(true);
+  };
+
+  const handleCloseMenu = () => {
+    setShowMenu(false);
+  };
+
+  const handleOpenSettingsFromMenu = () => {
+    setShowSettings(true);
+    // Hide WebContentsView when showing settings
+    window.electronAPI?.webContents.setVisible(false);
+  };
+
   return (
     <div className="w-screen h-screen rounded-xl overflow-hidden bg-transparent">
       <TopBar
@@ -581,6 +597,7 @@ function App() {
         currentUrl={currentUrl}
         onNavigate={handleNavigate}
         onShowTabs={handleToggleTabs}
+        onShowMenu={handleShowMenu}
         onRefresh={handleRefresh}
         theme={systemTheme}
         orientation={orientation}
@@ -609,6 +626,15 @@ function App() {
           )
         }
       />
+      {showMenu && (
+        <MenuOverlay
+          theme={systemTheme}
+          currentUrl={currentUrl}
+          currentTitle={pageTitle}
+          onClose={handleCloseMenu}
+          onOpenSettings={handleOpenSettingsFromMenu}
+        />
+      )}
     </div>
   );
 }

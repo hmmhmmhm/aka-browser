@@ -6,6 +6,7 @@ import { ipcMain, app, nativeTheme } from "electron";
 import { AppState } from "./types";
 import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
+import { BookmarkManager } from "./bookmark-manager";
 import { isValidUrl, sanitizeUrl, getUserAgentForUrl, logSecurityEvent } from "./security";
 import { ThemeColorCache } from "./theme-cache";
 
@@ -13,17 +14,20 @@ export class IPCHandlers {
   private state: AppState;
   private tabManager: TabManager;
   private windowManager: WindowManager;
+  private bookmarkManager: BookmarkManager;
   private themeColorCache: ThemeColorCache;
 
   constructor(
     state: AppState,
     tabManager: TabManager,
     windowManager: WindowManager,
+    bookmarkManager: BookmarkManager,
     themeColorCache: ThemeColorCache
   ) {
     this.state = state;
     this.tabManager = tabManager;
     this.windowManager = windowManager;
+    this.bookmarkManager = bookmarkManager;
     this.themeColorCache = themeColorCache;
   }
 
@@ -37,6 +41,7 @@ export class IPCHandlers {
     this.registerThemeHandlers();
     this.registerOrientationHandlers();
     this.registerAppHandlers();
+    this.registerBookmarkHandlers();
   }
 
   /**
@@ -357,6 +362,75 @@ export class IPCHandlers {
   private registerAppHandlers(): void {
     ipcMain.handle("get-app-version", () => {
       return app.getVersion();
+    });
+  }
+
+  /**
+   * Register bookmark handlers
+   */
+  private registerBookmarkHandlers(): void {
+    // Get all bookmarks
+    ipcMain.handle("bookmarks-get-all", () => {
+      return this.bookmarkManager.getAll();
+    });
+
+    // Get bookmark by ID
+    ipcMain.handle("bookmarks-get-by-id", (_event, id: string) => {
+      return this.bookmarkManager.getById(id);
+    });
+
+    // Check if URL is bookmarked
+    ipcMain.handle("bookmarks-is-bookmarked", (_event, url: string) => {
+      return this.bookmarkManager.isBookmarked(url);
+    });
+
+    // Add bookmark
+    ipcMain.handle("bookmarks-add", (_event, title: string, url: string, favicon?: string) => {
+      const bookmark = this.bookmarkManager.add(title, url, favicon);
+      // Notify all windows about bookmark update
+      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+        this.state.mainWindow.webContents.send("bookmarks-updated");
+      }
+      return bookmark;
+    });
+
+    // Update bookmark
+    ipcMain.handle("bookmarks-update", (_event, id: string, updates: any) => {
+      const bookmark = this.bookmarkManager.update(id, updates);
+      // Notify all windows about bookmark update
+      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+        this.state.mainWindow.webContents.send("bookmarks-updated");
+      }
+      return bookmark;
+    });
+
+    // Remove bookmark
+    ipcMain.handle("bookmarks-remove", (_event, id: string) => {
+      const result = this.bookmarkManager.remove(id);
+      // Notify all windows about bookmark update
+      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+        this.state.mainWindow.webContents.send("bookmarks-updated");
+      }
+      return result;
+    });
+
+    // Remove bookmark by URL
+    ipcMain.handle("bookmarks-remove-by-url", (_event, url: string) => {
+      const result = this.bookmarkManager.removeByUrl(url);
+      // Notify all windows about bookmark update
+      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+        this.state.mainWindow.webContents.send("bookmarks-updated");
+      }
+      return result;
+    });
+
+    // Clear all bookmarks
+    ipcMain.handle("bookmarks-clear", () => {
+      this.bookmarkManager.clear();
+      // Notify all windows about bookmark update
+      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+        this.state.mainWindow.webContents.send("bookmarks-updated");
+      }
     });
   }
 }
