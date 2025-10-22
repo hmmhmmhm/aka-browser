@@ -8,15 +8,19 @@ interface HtmlOptions {
   scriptPath: string;
   cssPath?: string;
   queryParams?: Record<string, string>;
+  isDev?: boolean;
 }
 
 export function generateHtml(options: HtmlOptions): string {
-  const { title, themeColor, scriptPath, cssPath, queryParams } = options;
+  const { title, themeColor, scriptPath, cssPath, queryParams, isDev } = options;
   
   // Inject query parameters as a global variable
   const queryParamsScript = queryParams 
     ? `<script>window.__QUERY_PARAMS__ = ${JSON.stringify(queryParams)};</script>`
     : '';
+  
+  // In dev mode, use Vite's @vite/client for HMR
+  const viteClient = isDev ? '<script type="module" src="/@vite/client"></script>' : '';
   
   return `<!doctype html>
 <html lang="ko">
@@ -30,6 +34,7 @@ export function generateHtml(options: HtmlOptions): string {
     <title>${title}</title>
     ${cssPath ? `<link rel="stylesheet" href="${cssPath}" />` : ''}
     ${queryParamsScript}
+    ${viteClient}
   </head>
   <body>
     <div id="root"></div>
@@ -38,19 +43,21 @@ export function generateHtml(options: HtmlOptions): string {
 </html>`;
 }
 
-export function generateBlankPageHtml(scriptPath: string, cssPath?: string): string {
+export function generateBlankPageHtml(scriptPath: string, cssPath?: string, isDev: boolean = false): string {
   return generateHtml({
     title: 'Blank Page',
     themeColor: '#1c1c1e',
     scriptPath,
     cssPath,
+    isDev,
   });
 }
 
 export function generateErrorPageHtml(
   scriptPath: string, 
   cssPath?: string, 
-  queryParams?: Record<string, string>
+  queryParams?: Record<string, string>,
+  isDev: boolean = false
 ): string {
   return generateHtml({
     title: 'Error',
@@ -58,5 +65,6 @@ export function generateErrorPageHtml(
     scriptPath,
     cssPath,
     queryParams,
+    isDev,
   });
 }

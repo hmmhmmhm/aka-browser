@@ -36,11 +36,13 @@ export class TabManager {
     console.log("[TabManager] Creating tab with preload:", webviewPreloadPath);
     console.log("[TabManager] Preload exists:", hasWebviewPreload);
 
+    const isDev = process.env.NODE_ENV === "development";
+    
     const view = new WebContentsView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        webSecurity: true,
+        webSecurity: !isDev, // Disable webSecurity in dev mode to allow loading from Vite dev server
         allowRunningInsecureContent: false,
         sandbox: false, // Widevine requires sandbox: false
         partition: "persist:main",
@@ -81,24 +83,6 @@ export class TabManager {
 
     // Load URL or blank page
     if (!url || url.trim() === "") {
-      // Load blank page for blank tabs
-      const { app } = require("electron");
-      const distPath = path.join(app.getAppPath(), "dist-renderer");
-      const scriptPath = path.join(distPath, "pages", "blank-page.js");
-      const cssFile = this.findAssetFile(distPath, "blank-page", ".css");
-      const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
-      
-      // Generate HTML dynamically with absolute paths
-      const html = generateBlankPageHtml(scriptPath, cssPath);
-      
-      // Write to temporary file
-      const tmpDir = path.join(app.getPath("temp"), "aka-browser");
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
-      const tmpHtmlPath = path.join(tmpDir, `blank-page-${tabId}.html`);
-      fs.writeFileSync(tmpHtmlPath, html, "utf-8");
-      
       // Immediately set blank-page theme color before loading
       const blankPageThemeColor = "#1c1c1e";
       this.state.latestThemeColor = blankPageThemeColor;
@@ -109,10 +93,67 @@ export class TabManager {
         );
       }
       
-      // Load from temporary file
-      view.webContents.loadFile(tmpHtmlPath).catch((err) => {
-        console.error("[TabManager] Failed to load blank page:", err);
-      });
+      // Load blank page for blank tabs
+      const { app } = require("electron");
+      
+      if (isDev) {
+        // In dev mode, use temporary file with Vite dev server URLs
+        const devHtml = `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1c1c1e" />
+    <title>Blank Page</title>
+    <script type="module">
+      import RefreshRuntime from 'http://localhost:5173/@react-refresh'
+      RefreshRuntime.injectIntoGlobalHook(window)
+      window.$RefreshReg$ = () => {}
+      window.$RefreshSig$ = () => (type) => type
+      window.__vite_plugin_react_preamble_installed__ = true
+    </script>
+    <script type="module" src="http://localhost:5173/@vite/client"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="http://localhost:5173/pages/blank-page-entry.tsx"></script>
+  </body>
+</html>`;
+        
+        // Write to temporary file
+        const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+        if (!fs.existsSync(tmpDir)) {
+          fs.mkdirSync(tmpDir, { recursive: true });
+        }
+        const tmpHtmlPath = path.join(tmpDir, `blank-page-${tabId}.html`);
+        fs.writeFileSync(tmpHtmlPath, devHtml, "utf-8");
+        
+        // Load from temporary file (file:// protocol with webSecurity disabled allows loading from http://)
+        view.webContents.loadFile(tmpHtmlPath).catch((err) => {
+          console.error("[TabManager] Failed to load blank page:", err);
+        });
+      } else {
+        // In production, generate HTML and load from temporary file
+        const distPath = path.join(app.getAppPath(), "dist-renderer");
+        const scriptPath = path.join(distPath, "pages", "blank-page.js");
+        const cssFile = this.findAssetFile(distPath, "blank-page", ".css");
+        const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
+        
+        const html = generateBlankPageHtml(scriptPath, cssPath, false);
+        
+        // Write to temporary file
+        const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+        if (!fs.existsSync(tmpDir)) {
+          fs.mkdirSync(tmpDir, { recursive: true });
+        }
+        const tmpHtmlPath = path.join(tmpDir, `blank-page-${tabId}.html`);
+        fs.writeFileSync(tmpHtmlPath, html, "utf-8");
+        
+        // Load from temporary file
+        view.webContents.loadFile(tmpHtmlPath).catch((err) => {
+          console.error("[TabManager] Failed to load blank page:", err);
+        });
+      }
     } else {
       const sanitized = sanitizeUrl(url);
       if (isValidUrl(sanitized)) {
@@ -780,31 +821,9 @@ export class TabManager {
         );
 
         // Load error page with details
-        // Use app.getAppPath() for correct path in both dev and production
         const { app } = require("electron");
-        const distPath = path.join(app.getAppPath(), "dist-renderer");
         const statusText = this.getNetworkErrorText(errorCode, errorDescription);
-        
-        // Create query params object for error details
-        const queryParamsObj = {
-          statusCode: Math.abs(errorCode).toString(),
-          statusText: statusText,
-          url: validatedURL,
-        };
-        
-        // Generate HTML dynamically with absolute paths
-        const scriptPath = path.join(distPath, "pages", "error-page.js");
-        const cssFile = this.findAssetFile(distPath, "error-page", ".css");
-        const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
-        const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj);
-        
-        // Write to temporary file
-        const tmpDir = path.join(app.getPath("temp"), "aka-browser");
-        if (!fs.existsSync(tmpDir)) {
-          fs.mkdirSync(tmpDir, { recursive: true });
-        }
-        const tmpHtmlPath = path.join(tmpDir, `error-page-${tabId}.html`);
-        fs.writeFileSync(tmpHtmlPath, html, "utf-8");
+        const isDev = process.env.NODE_ENV === "development";
         
         console.log(`[TabManager] Loading error page for error ${errorCode}`);
 
@@ -812,8 +831,49 @@ export class TabManager {
         setTimeout(() => {
           if (!contents.isDestroyed()) {
             console.log(`[TabManager] Attempting to load error page now`);
-            // Load error page from temporary file
-            contents.loadFile(tmpHtmlPath).then(() => {
+            
+            // Create query params object for error details
+            const queryParamsObj = {
+              statusCode: Math.abs(errorCode).toString(),
+              statusText: statusText,
+              url: validatedURL,
+            };
+            
+            if (isDev) {
+              // In dev mode, use temporary file with Vite dev server URLs
+              const devHtml = `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2d2d2d" />
+    <title>Error</title>
+    <script>window.__QUERY_PARAMS__ = ${JSON.stringify(queryParamsObj)};</script>
+    <script type="module">
+      import RefreshRuntime from 'http://localhost:5173/@react-refresh'
+      RefreshRuntime.injectIntoGlobalHook(window)
+      window.$RefreshReg$ = () => {}
+      window.$RefreshSig$ = () => (type) => type
+      window.__vite_plugin_react_preamble_installed__ = true
+    </script>
+    <script type="module" src="http://localhost:5173/@vite/client"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="http://localhost:5173/pages/error-page-entry.tsx"></script>
+  </body>
+</html>`;
+              
+              // Write to temporary file
+              const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+              if (!fs.existsSync(tmpDir)) {
+                fs.mkdirSync(tmpDir, { recursive: true });
+              }
+              const tmpHtmlPath = path.join(tmpDir, `error-page-${tabId}.html`);
+              fs.writeFileSync(tmpHtmlPath, devHtml, "utf-8");
+              
+              // Load from temporary file (file:// protocol with webSecurity disabled allows loading from http://)
+              contents.loadFile(tmpHtmlPath).then(() => {
                 console.log(`[TabManager] Error page loaded successfully`);
                 
                 // Update tab info
@@ -836,9 +896,49 @@ export class TabManager {
                 console.error(`[TabManager] Failed to load error page:`, err);
               });
             } else {
-              console.log(`[TabManager] Contents destroyed, cannot load error page`);
+              // In production, generate HTML and load from temporary file
+              const distPath = path.join(app.getAppPath(), "dist-renderer");
+              const scriptPath = path.join(distPath, "pages", "error-page.js");
+              const cssFile = this.findAssetFile(distPath, "error-page", ".css");
+              const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
+              const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj, false);
+              
+              // Write to temporary file
+              const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+              if (!fs.existsSync(tmpDir)) {
+                fs.mkdirSync(tmpDir, { recursive: true });
+              }
+              const tmpHtmlPath = path.join(tmpDir, `error-page-${tabId}.html`);
+              fs.writeFileSync(tmpHtmlPath, html, "utf-8");
+              
+              // Load error page from temporary file
+              contents.loadFile(tmpHtmlPath).then(() => {
+                console.log(`[TabManager] Error page loaded successfully`);
+                
+                // Update tab info
+                const tab = this.state.tabs.find((t) => t.id === tabId);
+                if (tab) {
+                  tab.url = "/";
+                  tab.title = "Aka Browser cannot open the page";
+                }
+                
+                // Apply error-page theme color immediately
+                const errorPageThemeColor = "#2d2d2d";
+                this.state.latestThemeColor = errorPageThemeColor;
+                if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+                  this.state.mainWindow.webContents.send(
+                    "webcontents-theme-color-updated",
+                    errorPageThemeColor
+                  );
+                }
+              }).catch((err) => {
+                console.error(`[TabManager] Failed to load error page:`, err);
+              });
             }
-          }, 100);
+          } else {
+            console.log(`[TabManager] Contents destroyed, cannot load error page`);
+          }
+        }, 100);
 
           // Notify renderer about the error
           this.state.mainWindow?.webContents.send(
@@ -882,10 +982,9 @@ export class TabManager {
           );
 
           // Load error page with details
-          // Use app.getAppPath() for correct path in both dev and production
           const { app } = require("electron");
-          const distPath = path.join(app.getAppPath(), "dist-renderer");
           const statusText = this.getStatusText(httpResponseCode);
+          const isDev = process.env.NODE_ENV === "development";
           
           // Create query params object for error details
           const queryParamsObj = {
@@ -894,41 +993,98 @@ export class TabManager {
             url: originalURL,
           };
           
-          // Generate HTML dynamically with absolute paths
-          const scriptPath = path.join(distPath, "pages", "error-page.js");
-          const cssFile = this.findAssetFile(distPath, "error-page", ".css");
-          const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
-          const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj);
-          
-          // Write to temporary file
-          const tmpDir = path.join(app.getPath("temp"), "aka-browser");
-          if (!fs.existsSync(tmpDir)) {
-            fs.mkdirSync(tmpDir, { recursive: true });
+          if (isDev) {
+            // In dev mode, use temporary file with Vite dev server URLs
+            const devHtml = `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2d2d2d" />
+    <title>Error</title>
+    <script>window.__QUERY_PARAMS__ = ${JSON.stringify(queryParamsObj)};</script>
+    <script type="module">
+      import RefreshRuntime from 'http://localhost:5173/@react-refresh'
+      RefreshRuntime.injectIntoGlobalHook(window)
+      window.$RefreshReg$ = () => {}
+      window.$RefreshSig$ = () => (type) => type
+      window.__vite_plugin_react_preamble_installed__ = true
+    </script>
+    <script type="module" src="http://localhost:5173/@vite/client"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="http://localhost:5173/pages/error-page-entry.tsx"></script>
+  </body>
+</html>`;
+            
+            // Write to temporary file
+            const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+            if (!fs.existsSync(tmpDir)) {
+              fs.mkdirSync(tmpDir, { recursive: true });
+            }
+            const tmpHtmlPath = path.join(tmpDir, `error-page-http-${tabId}.html`);
+            fs.writeFileSync(tmpHtmlPath, devHtml, "utf-8");
+            
+            // Load from temporary file (file:// protocol with webSecurity disabled allows loading from http://)
+            contents.loadFile(tmpHtmlPath).then(() => {
+              // Update tab info
+              const tab = this.state.tabs.find((t) => t.id === tabId);
+              if (tab) {
+                tab.url = "/";
+                tab.title = "Aka Browser cannot open the page";
+              }
+              
+              // Apply error-page theme color immediately
+              const errorPageThemeColor = "#2d2d2d";
+              this.state.latestThemeColor = errorPageThemeColor;
+              if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+                this.state.mainWindow.webContents.send(
+                  "webcontents-theme-color-updated",
+                  errorPageThemeColor
+                );
+              }
+            }).catch((err) => {
+              console.error("Failed to load error page from data URL:", err);
+            });
+          } else {
+            // In production, generate HTML and load from temporary file
+            const distPath = path.join(app.getAppPath(), "dist-renderer");
+            const scriptPath = path.join(distPath, "pages", "error-page.js");
+            const cssFile = this.findAssetFile(distPath, "error-page", ".css");
+            const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
+            const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj, false);
+            
+            // Write to temporary file
+            const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+            if (!fs.existsSync(tmpDir)) {
+              fs.mkdirSync(tmpDir, { recursive: true });
+            }
+            const tmpHtmlPath = path.join(tmpDir, `error-page-${tabId}.html`);
+            fs.writeFileSync(tmpHtmlPath, html, "utf-8");
+            
+            // Load the error page from temporary file
+            contents.loadFile(tmpHtmlPath).then(() => {
+              // Update tab info
+              const tab = this.state.tabs.find((t) => t.id === tabId);
+              if (tab) {
+                tab.url = "/";
+                tab.title = "Aka Browser cannot open the page";
+              }
+              
+              // Apply error-page theme color immediately
+              const errorPageThemeColor = "#2d2d2d";
+              this.state.latestThemeColor = errorPageThemeColor;
+              if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+                this.state.mainWindow.webContents.send(
+                  "webcontents-theme-color-updated",
+                  errorPageThemeColor
+                );
+              }
+            }).catch((err) => {
+              console.error("Failed to load error page:", err);
+            });
           }
-          const tmpHtmlPath = path.join(tmpDir, `error-page-${tabId}.html`);
-          fs.writeFileSync(tmpHtmlPath, html, "utf-8");
-          
-          // Load the error page from temporary file
-          contents.loadFile(tmpHtmlPath).then(() => {
-                // Update tab info
-                const tab = this.state.tabs.find((t) => t.id === tabId);
-                if (tab) {
-                  tab.url = "/";
-                  tab.title = "Aka Browser cannot open the page";
-                }
-                
-                // Apply error-page theme color immediately
-                const errorPageThemeColor = "#2d2d2d";
-                this.state.latestThemeColor = errorPageThemeColor;
-                if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-                  this.state.mainWindow.webContents.send(
-                    "webcontents-theme-color-updated",
-                    errorPageThemeColor
-                  );
-                }
-              }).catch((err) => {
-                console.error("Failed to load error page:", err);
-              });
 
             // Notify renderer about the error
             this.state.mainWindow?.webContents.send(
