@@ -217,8 +217,8 @@ export class WindowManager {
     // Register local keyboard shortcuts (only work when window is focused)
     this.registerLocalShortcuts();
 
-    // Create initial tab
-    const initialTab = this.tabManager.createTab("https://www.google.com");
+    // Create initial blank tab with start page
+    const initialTab = this.tabManager.createTab("");
     this.tabManager.switchToTab(initialTab.id);
 
     // Set permission request handler

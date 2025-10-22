@@ -89,6 +89,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     setVisible: (visible: boolean) => ipcRenderer.invoke("webcontents-set-visible", visible),
     // Removed executeJavaScript for security - use specific APIs instead
     getThemeColor: () => ipcRenderer.invoke("webcontents-get-theme-color"),
+    onThemeColorUpdated: (callback: (color: string) => void) => {
+      const listener = (_event: any, color: string) => callback(color);
+      ipcRenderer.on("webcontents-theme-color-updated", listener);
+      return () => ipcRenderer.removeListener("webcontents-theme-color-updated", listener);
+    },
     setBounds: (bounds: {
       x: number;
       y: number;
@@ -174,5 +179,33 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () =>
         ipcRenderer.removeListener("webcontents-http-error", listener);
     },
+  },
+
+  // Bookmark management APIs
+  bookmarks: {
+    getAll: () => ipcRenderer.invoke("bookmarks-get-all"),
+    getById: (id: string) => ipcRenderer.invoke("bookmarks-get-by-id", id),
+    isBookmarked: (url: string) => ipcRenderer.invoke("bookmarks-is-bookmarked", url),
+    add: (title: string, url: string, favicon?: string) => 
+      ipcRenderer.invoke("bookmarks-add", title, url, favicon),
+    update: (id: string, updates: any) => 
+      ipcRenderer.invoke("bookmarks-update", id, updates),
+    remove: (id: string) => ipcRenderer.invoke("bookmarks-remove", id),
+    removeByUrl: (url: string) => ipcRenderer.invoke("bookmarks-remove-by-url", url),
+    clear: () => ipcRenderer.invoke("bookmarks-clear"),
+    onUpdate: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("bookmarks-updated", listener);
+      return () => ipcRenderer.removeListener("bookmarks-updated", listener);
+    },
+  },
+
+  // Favicon cache APIs
+  favicon: {
+    get: (url: string) => ipcRenderer.invoke("favicon-get", url),
+    getWithFallback: (pageUrl: string) => ipcRenderer.invoke("favicon-get-with-fallback", pageUrl),
+    isCached: (url: string) => ipcRenderer.invoke("favicon-is-cached", url),
+    clearCache: () => ipcRenderer.invoke("favicon-clear-cache"),
+    getCacheSize: () => ipcRenderer.invoke("favicon-get-cache-size"),
   },
 });

@@ -8,6 +8,7 @@ interface TopBarProps {
   currentUrl: string;
   onNavigate: (url: string) => void;
   onShowTabs: () => void;
+  onShowMenu: () => void;
   onRefresh: () => void;
   theme: 'light' | 'dark';
   orientation: 'portrait' | 'landscape';
@@ -20,6 +21,7 @@ function TopBar({
   currentUrl,
   onNavigate,
   onShowTabs,
+  onShowMenu,
   onRefresh,
   theme,
   orientation,
@@ -107,6 +109,7 @@ function TopBar({
       <NavigationControls
         onShowTabs={onShowTabs}
         onRefresh={onRefresh}
+        onShowMenu={onShowMenu}
         theme={theme}
         tabCount={tabCount}
       />

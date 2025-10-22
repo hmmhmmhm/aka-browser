@@ -4,20 +4,22 @@ import TopBar from "./components/top-bar";
 import PhoneFrame from "./components/phone-frame";
 import TabOverview from "./components/tab-overview";
 import Settings from "./components/settings";
+import MenuOverlay from "./components/menu-overlay";
 
 function App() {
   const [_time, setTime] = useState("9:41");
-  const [pageTitle, setPageTitle] = useState("Loading...");
-  const [pageDomain, setPageDomain] = useState("www.google.com");
-  const [themeColor, setThemeColor] = useState("#ffffff");
-  const [textColor, setTextColor] = useState("#000000");
+  const [pageTitle, setPageTitle] = useState("New Tab");
+  const [pageDomain, setPageDomain] = useState("");
+  const [themeColor, setThemeColor] = useState("#1c1c1e"); // Start with blank-page color
+  const [textColor, setTextColor] = useState("#ffffff"); // White text for dark background
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("dark");
-  const [currentUrl, setCurrentUrl] = useState("https://www.google.com");
+  const [currentUrl, setCurrentUrl] = useState("");
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     "portrait"
   );
   const [showTabOverview, setShowTabOverview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [tabCount, setTabCount] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const webContainerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +69,21 @@ function App() {
     const cleanup = window.electronAPI?.onFullscreenModeChanged(
       (fullscreen: boolean) => {
         setIsFullscreen(fullscreen);
+      }
+    );
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
+  // Listen for theme color updates from main process
+  useEffect(() => {
+    const cleanup = window.electronAPI?.webContents.onThemeColorUpdated(
+      (color: string) => {
+        setThemeColor(color);
+        const luminance = getLuminance(color);
+        setTextColor(luminance > 0.5 ? "#000000" : "#ffffff");
       }
     );
 
@@ -573,6 +590,26 @@ function App() {
     window.electronAPI?.webContents.setVisible(true);
   };
 
+  const handleShowMenu = () => {
+    if (showSettings) {
+      // If settings is open, close it and show WebContentsView
+      handleCloseSettings();
+    } else {
+      // Hide WebContentsView and show settings directly
+      window.electronAPI?.webContents.setVisible(false);
+      setShowSettings(true);
+    }
+  };
+
+  const handleCloseMenu = () => {
+    setShowMenu(false);
+  };
+
+  const handleOpenSettingsFromMenu = () => {
+    setShowSettings(true);
+    // WebContentsView is already hidden
+  };
+
   return (
     <div className="w-screen h-screen rounded-xl overflow-hidden bg-transparent">
       <TopBar
@@ -581,6 +618,7 @@ function App() {
         currentUrl={currentUrl}
         onNavigate={handleNavigate}
         onShowTabs={handleToggleTabs}
+        onShowMenu={handleShowMenu}
         onRefresh={handleRefresh}
         theme={systemTheme}
         orientation={orientation}
@@ -609,6 +647,15 @@ function App() {
           )
         }
       />
+      {showMenu && (
+        <MenuOverlay
+          theme={systemTheme}
+          currentUrl={currentUrl}
+          currentTitle={pageTitle}
+          onClose={handleCloseMenu}
+          onOpenSettings={handleOpenSettingsFromMenu}
+        />
+      )}
     </div>
   );
 }

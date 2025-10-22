@@ -6,6 +6,8 @@ import { ipcMain, app, nativeTheme } from "electron";
 import { AppState } from "./types";
 import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
+import { BookmarkManager } from "./bookmark-manager";
+import { FaviconCache } from "./favicon-cache";
 import { isValidUrl, sanitizeUrl, getUserAgentForUrl, logSecurityEvent } from "./security";
 import { ThemeColorCache } from "./theme-cache";
 
@@ -13,17 +15,23 @@ export class IPCHandlers {
   private state: AppState;
   private tabManager: TabManager;
   private windowManager: WindowManager;
+  private bookmarkManager: BookmarkManager;
+  private faviconCache: FaviconCache;
   private themeColorCache: ThemeColorCache;
 
   constructor(
     state: AppState,
     tabManager: TabManager,
     windowManager: WindowManager,
+    bookmarkManager: BookmarkManager,
+    faviconCache: FaviconCache,
     themeColorCache: ThemeColorCache
   ) {
     this.state = state;
     this.tabManager = tabManager;
     this.windowManager = windowManager;
+    this.bookmarkManager = bookmarkManager;
+    this.faviconCache = faviconCache;
     this.themeColorCache = themeColorCache;
   }
 
@@ -37,6 +45,8 @@ export class IPCHandlers {
     this.registerThemeHandlers();
     this.registerOrientationHandlers();
     this.registerAppHandlers();
+    this.registerBookmarkHandlers();
+    this.registerFaviconHandlers();
   }
 
   /**
@@ -244,7 +254,12 @@ export class IPCHandlers {
         return "";
       }
       if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
-        return this.state.webContentsView.webContents.getURL();
+        const url = this.state.webContentsView.webContents.getURL();
+        // Return "/" for blank-page and error-page
+        if (url.includes("blank-page.html") || url.startsWith("data:text/html")) {
+          return "/";
+        }
+        return url;
       }
       return "";
     });
@@ -255,6 +270,15 @@ export class IPCHandlers {
         return "";
       }
       if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
+        const url = this.state.webContentsView.webContents.getURL();
+        // Return "Blank Page" for blank-page
+        if (url.includes("blank-page.html")) {
+          return "Blank Page";
+        }
+        // Return actual title for error-page (it's set in the HTML)
+        if (url.startsWith("data:text/html")) {
+          return this.state.webContentsView.webContents.getTitle();
+        }
         return this.state.webContentsView.webContents.getTitle();
       }
       return "";
@@ -357,6 +381,105 @@ export class IPCHandlers {
   private registerAppHandlers(): void {
     ipcMain.handle("get-app-version", () => {
       return app.getVersion();
+    });
+  }
+
+  /**
+   * Notify all windows about bookmark updates
+   */
+  private notifyBookmarkUpdate(): void {
+    // Notify main window
+    if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+      this.state.mainWindow.webContents.send("bookmarks-updated");
+    }
+    
+    // Notify WebContentsView
+    if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
+      this.state.webContentsView.webContents.send("bookmarks-updated");
+    }
+  }
+
+  /**
+   * Register bookmark management handlers
+   */
+  private registerBookmarkHandlers(): void {
+    // Get all bookmarks
+    ipcMain.handle("bookmarks-get-all", () => {
+      return this.bookmarkManager.getAll();
+    });
+
+    // Get bookmark by ID
+    ipcMain.handle("bookmarks-get-by-id", (_event, id: string) => {
+      return this.bookmarkManager.getById(id);
+    });
+
+    // Check if URL is bookmarked
+    ipcMain.handle("bookmarks-is-bookmarked", (_event, url: string) => {
+      return this.bookmarkManager.isBookmarked(url);
+    });
+
+    // Add bookmark
+    ipcMain.handle("bookmarks-add", (_event, title: string, url: string, favicon?: string) => {
+      const bookmark = this.bookmarkManager.add(title, url, favicon);
+      this.notifyBookmarkUpdate();
+      return bookmark;
+    });
+
+    // Update bookmark
+    ipcMain.handle("bookmarks-update", (_event, id: string, updates: any) => {
+      const bookmark = this.bookmarkManager.update(id, updates);
+      this.notifyBookmarkUpdate();
+      return bookmark;
+    });
+
+    // Remove bookmark
+    ipcMain.handle("bookmarks-remove", (_event, id: string) => {
+      const result = this.bookmarkManager.remove(id);
+      this.notifyBookmarkUpdate();
+      return result;
+    });
+
+    // Remove bookmark by URL
+    ipcMain.handle("bookmarks-remove-by-url", (_event, url: string) => {
+      const result = this.bookmarkManager.removeByUrl(url);
+      this.notifyBookmarkUpdate();
+      return result;
+    });
+
+    // Clear all bookmarks
+    ipcMain.handle("bookmarks-clear", () => {
+      this.bookmarkManager.clear();
+      this.notifyBookmarkUpdate();
+    });
+  }
+
+  /**
+   * Register favicon cache handlers
+   */
+  private registerFaviconHandlers(): void {
+    // Get favicon with caching
+    ipcMain.handle("favicon-get", async (_event, url: string) => {
+      return this.faviconCache.getFavicon(url);
+    });
+
+    // Get favicon with fallback sources
+    ipcMain.handle("favicon-get-with-fallback", async (_event, pageUrl: string) => {
+      return this.faviconCache.getFaviconWithFallback(pageUrl);
+    });
+
+    // Check if favicon is cached
+    ipcMain.handle("favicon-is-cached", (_event, url: string) => {
+      return this.faviconCache.isCached(url);
+    });
+
+    // Clear favicon cache
+    ipcMain.handle("favicon-clear-cache", () => {
+      this.faviconCache.clearCache();
+    });
+
+    // Get cache size
+    ipcMain.handle("favicon-get-cache-size", () => {
+      return this.faviconCache.getCacheSize();
     });
   }
 }
