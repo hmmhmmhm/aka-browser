@@ -237,19 +237,31 @@ function App() {
   // Update page info
   const updatePageInfo = async () => {
     try {
-      const url = await window.electronAPI?.webContents.getURL();
+      let url = await window.electronAPI?.webContents.getURL();
       const title = await window.electronAPI?.webContents.getTitle();
 
-      setPageTitle(title || "Untitled");
-      setCurrentUrl(url || "https://www.google.com");
+      console.log("[App] Raw URL from IPC:", url);
 
-      if (url) {
+      // Filter out temporary file paths for blank-page and error-page
+      if (url && (url.includes("blank-page-tab-") || url.includes("error-page-tab-"))) {
+        console.log("[App] Filtering temporary file path to /");
+        url = "/";
+      }
+
+      console.log("[App] Final URL:", url);
+
+      setPageTitle(title || "Untitled");
+      setCurrentUrl(url || "/");
+
+      if (url && url !== "/") {
         try {
           const urlObj = new URL(url);
           setPageDomain(urlObj.hostname);
         } catch (e) {
           setPageDomain(url);
         }
+      } else {
+        setPageDomain("");
       }
     } catch (err) {
       // Silently ignore errors during page transitions
