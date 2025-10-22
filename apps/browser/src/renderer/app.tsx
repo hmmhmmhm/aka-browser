@@ -10,8 +10,8 @@ function App() {
   const [_time, setTime] = useState("9:41");
   const [pageTitle, setPageTitle] = useState("New Tab");
   const [pageDomain, setPageDomain] = useState("");
-  const [themeColor, setThemeColor] = useState("#ffffff");
-  const [textColor, setTextColor] = useState("#000000");
+  const [themeColor, setThemeColor] = useState("#1c1c1e"); // Start with start-page color
+  const [textColor, setTextColor] = useState("#ffffff"); // White text for dark background
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("dark");
   const [currentUrl, setCurrentUrl] = useState("");
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
@@ -69,6 +69,21 @@ function App() {
     const cleanup = window.electronAPI?.onFullscreenModeChanged(
       (fullscreen: boolean) => {
         setIsFullscreen(fullscreen);
+      }
+    );
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
+  // Listen for theme color updates from main process
+  useEffect(() => {
+    const cleanup = window.electronAPI?.webContents.onThemeColorUpdated(
+      (color: string) => {
+        setThemeColor(color);
+        const luminance = getLuminance(color);
+        setTextColor(luminance > 0.5 ? "#000000" : "#ffffff");
       }
     );
 

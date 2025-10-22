@@ -110,6 +110,7 @@ export interface ElectronAPI {
     onHttpError: (
       callback: (statusCode: number, statusText: string, url: string) => void
     ) => () => void;
+    onThemeColorUpdated: (callback: (color: string) => void) => () => void;
   };
 
   // Bookmark management APIs

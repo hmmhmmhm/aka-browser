@@ -83,6 +83,17 @@ export class TabManager {
       // Load start page for blank tabs
       const { app } = require("electron");
       const startPagePath = path.join(app.getAppPath(), "assets", "start-page.html");
+      
+      // Immediately set start-page theme color before loading
+      const startPageThemeColor = "#1c1c1e";
+      this.state.latestThemeColor = startPageThemeColor;
+      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+        this.state.mainWindow.webContents.send(
+          "webcontents-theme-color-updated",
+          startPageThemeColor
+        );
+      }
+      
       view.webContents.loadFile(startPagePath).catch((err) => {
         console.error("[TabManager] Failed to load start page:", err);
       });
@@ -120,6 +131,39 @@ export class TabManager {
     // Update webContentsView reference BEFORE adding view
     this.state.webContentsView = tab.view;
     this.state.activeTabId = tabId;
+
+    // Immediately apply theme color for the switched tab
+    const url = tab.view.webContents.getURL();
+    if (url) {
+      // Check if it's start-page
+      if (url.includes("start-page.html")) {
+        const startPageThemeColor = "#1c1c1e";
+        this.state.latestThemeColor = startPageThemeColor;
+        this.state.mainWindow.webContents.send(
+          "webcontents-theme-color-updated",
+          startPageThemeColor
+        );
+      } else {
+        // Try to get cached theme color for regular pages
+        try {
+          const domain = new URL(url).hostname;
+          const cachedColor = this.themeColorCache.get(domain);
+          if (cachedColor) {
+            this.state.latestThemeColor = cachedColor;
+            this.state.mainWindow.webContents.send(
+              "webcontents-theme-color-updated",
+              cachedColor
+            );
+          } else {
+            this.state.latestThemeColor = null;
+          }
+        } catch (error) {
+          this.state.latestThemeColor = null;
+        }
+      }
+    } else {
+      this.state.latestThemeColor = null;
+    }
 
     // Show new tab
     if (!this.state.mainWindow.contentView.children.includes(tab.view)) {

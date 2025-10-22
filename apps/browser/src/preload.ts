@@ -89,6 +89,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     setVisible: (visible: boolean) => ipcRenderer.invoke("webcontents-set-visible", visible),
     // Removed executeJavaScript for security - use specific APIs instead
     getThemeColor: () => ipcRenderer.invoke("webcontents-get-theme-color"),
+    onThemeColorUpdated: (callback: (color: string) => void) => {
+      const listener = (_event: any, color: string) => callback(color);
+      ipcRenderer.on("webcontents-theme-color-updated", listener);
+      return () => ipcRenderer.removeListener("webcontents-theme-color-updated", listener);
+    },
     setBounds: (bounds: {
       x: number;
       y: number;
