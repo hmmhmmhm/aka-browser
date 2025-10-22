@@ -29,51 +29,51 @@ Think of it as your **always-on-top companion** for those moments when you need 
 
 ### Perfect For
 
-- 🍿 **Watching Netflix with subtitles** → PiP mode loses subtitles, aka-browser keeps them
-- 🐦 **Following Twitter/X** → Keep your timeline visible while working
-- 📺 **Monitoring streams** → Twitch, YouTube Live always in view
-- 📖 **Following tutorials** → Step-by-step guides alongside your code
-- 💬 **Chat windows** → Discord, Slack, or any web chat always accessible
-- 🎵 **Music controls** → Spotify, YouTube Music at your fingertips
+- **Watching Netflix with subtitles** → PiP mode loses subtitles, aka-browser keeps them
+- **Following Twitter/X** → Keep your timeline visible while working
+- **Monitoring streams** → Twitch, YouTube Live always in view
+- **Following tutorials** → Step-by-step guides alongside your code
+- **Chat windows** → Discord, Slack, or any web chat always accessible
+- **Music controls** → Spotify, YouTube Music at your fingertips
 
 ### Why Not Just Use Your Main Browser?
 
-- 🪟 **Always on top** → Never gets buried under other windows
-- 📱 **Compact & elegant** → Beautiful iPhone frame that doesn't clutter your screen
-- 🎯 **Purpose-built** → Lightweight, fast, and distraction-free
-- 🎬 **DRM-ready** → Full Widevine support for streaming services
-- ⚡ **Instant access** → Lives in your menu bar, launches immediately
+- **Always on top** → Never gets buried under other windows
+- **Compact & elegant** → Beautiful iPhone frame that doesn't clutter your screen
+- **Purpose-built** → Lightweight, fast, and distraction-free
+- **DRM-ready** → Full Widevine support for streaming services
+- **Instant access** → Lives in your menu bar, launches immediately
 
 ## ✨ Key Features
 
 ### 🖥️ **Browser Essentials**
 
-- 📑 **Multi-tab browsing** with visual switcher
-- 🖼️ **Tab previews** via auto-screenshots
-- 👆 **Trackpad gestures** for navigation
-- 🎨 **Dynamic theme colors** with LRU cache
-- 🤖 **Smart user agent** switching (mobile/desktop)
+- **Multi-tab browsing** with visual switcher
+- **Tab previews** via auto-screenshots
+- **Trackpad gestures** for navigation
+- **Dynamic theme colors** with LRU cache
+- **Smart user agent** switching (mobile/desktop)
 
 ### 🎬 **DRM Content Ready**
 
-- 🍿 **Netflix, Disney+, Prime Video** support
-- 🔐 **Widevine CDM** integration
-- ✍️ **Castlabs EVS** signed for production
-- 📦 **Packaged builds** for DRM validation
+- **Netflix, Disney+, Prime Video** support
+- **Widevine CDM** integration
+- **Castlabs EVS** signed for production
+- **Packaged builds** for DRM validation
 
 ### 🎨 **Beautiful Interface**
 
-- 📱 **iPhone 15 Pro frame** with Dynamic Island
-- ⚛️ **React 18** + Vite + TailwindCSS
-- 🌓 **System theme** detection (light/dark)
-- ✨ **Smooth animations** with optimized rendering
+- **iPhone 15 Pro frame** with Dynamic Island
+- **React 18** + Vite + TailwindCSS
+- **System theme** detection (light/dark)
+- **Smooth animations** with optimized rendering
 
 ### 🛠️ **Developer Tools**
 
-- 🔍 **Chrome DevTools** (Cmd+Option+I)
-- 🎯 **Element inspector** via right-click
-- 🔗 **URL bar** with title/domain display
-- 🖥️ **System tray** with always-on-top
+- **Chrome DevTools** (Cmd+Option+I)
+- **Element inspector** via right-click
+- **URL bar** with title/domain display
+- **System tray** with always-on-top
 
 ## 🚀 Quick Start
 
