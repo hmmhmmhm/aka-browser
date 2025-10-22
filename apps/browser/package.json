@@ -32,6 +32,7 @@
   "author": "hmmhmmhm",
   "license": "MIT",
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^20.11.0",
     "@types/react": "^19.2.2",
@@ -39,6 +40,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
+    "dotenv": "^17.2.3",
     "electron": "github:castlabs/electron-releases#v38.0.0+wvcus",
     "electron-builder": "^26.0.12",
     "tailwindcss": "^4.1.14",
@@ -66,11 +68,15 @@
       "!node_modules/**/*"
     ],
     "afterPack": "scripts/evs-sign.js",
+    "afterSign": "scripts/notarize.js",
     "mac": {
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "category": "public.app-category.developer-tools",
@@ -78,8 +84,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "identity": null
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
       "target": "nsis",

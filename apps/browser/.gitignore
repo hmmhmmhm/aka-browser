@@ -10,3 +10,7 @@ release
 
 # Compiled scripts (TypeScript sources in scripts-src/)
 scripts/*.js
+
+# Environment variables (contains sensitive data)
+.env.local
+.env.*.local
