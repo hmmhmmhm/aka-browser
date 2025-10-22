@@ -10,6 +10,22 @@ export default defineConfig({
   build: {
     outDir: path.join(__dirname, 'dist-renderer'),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: path.join(__dirname, 'src/renderer/index.html'),
+        'pages/blank-page': path.join(__dirname, 'src/renderer/pages/blank-page-entry.tsx'),
+        'pages/error-page': path.join(__dirname, 'src/renderer/pages/error-page-entry.tsx'),
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          // Keep page entries in pages/ directory
+          if (chunkInfo.name.startsWith('pages/')) {
+            return '[name].js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
+      },
+    },
   },
   server: {
     port: 5173,

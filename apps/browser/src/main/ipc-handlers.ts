@@ -255,10 +255,13 @@ export class IPCHandlers {
       }
       if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
         const url = this.state.webContentsView.webContents.getURL();
+        console.log("[IPC] webcontents-get-url raw URL:", url);
         // Return "/" for blank-page and error-page
-        if (url.includes("blank-page.html") || url.startsWith("data:text/html")) {
+        if (url.includes("blank-page-tab-") || url.includes("error-page-tab-")) {
+          console.log("[IPC] Returning / for temporary file");
           return "/";
         }
+        console.log("[IPC] Returning original URL:", url);
         return url;
       }
       return "";
@@ -272,11 +275,11 @@ export class IPCHandlers {
       if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
         const url = this.state.webContentsView.webContents.getURL();
         // Return "Blank Page" for blank-page
-        if (url.includes("blank-page.html")) {
+        if (url.includes("blank-page-tab-")) {
           return "Blank Page";
         }
         // Return actual title for error-page (it's set in the HTML)
-        if (url.startsWith("data:text/html")) {
+        if (url.includes("error-page-tab-")) {
           return this.state.webContentsView.webContents.getTitle();
         }
         return this.state.webContentsView.webContents.getTitle();

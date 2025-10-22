@@ -13,6 +13,7 @@ import {
   logSecurityEvent,
 } from "./security";
 import { ThemeColorCache } from "./theme-cache";
+import { generateBlankPageHtml, generateErrorPageHtml } from "./html-generator";
 
 export class TabManager {
   private state: AppState;
@@ -82,7 +83,21 @@ export class TabManager {
     if (!url || url.trim() === "") {
       // Load blank page for blank tabs
       const { app } = require("electron");
-      const blankPagePath = path.join(app.getAppPath(), "assets", "blank-page.html");
+      const distPath = path.join(app.getAppPath(), "dist-renderer");
+      const scriptPath = path.join(distPath, "pages", "blank-page.js");
+      const cssFile = this.findAssetFile(distPath, "blank-page", ".css");
+      const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
+      
+      // Generate HTML dynamically with absolute paths
+      const html = generateBlankPageHtml(scriptPath, cssPath);
+      
+      // Write to temporary file
+      const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+      const tmpHtmlPath = path.join(tmpDir, `blank-page-${tabId}.html`);
+      fs.writeFileSync(tmpHtmlPath, html, "utf-8");
       
       // Immediately set blank-page theme color before loading
       const blankPageThemeColor = "#1c1c1e";
@@ -94,7 +109,8 @@ export class TabManager {
         );
       }
       
-      view.webContents.loadFile(blankPagePath).catch((err) => {
+      // Load from temporary file
+      view.webContents.loadFile(tmpHtmlPath).catch((err) => {
         console.error("[TabManager] Failed to load blank page:", err);
       });
     } else {
@@ -673,22 +689,26 @@ export class TabManager {
 
     contents.on("did-navigate", (event: any, url: string) => {
       const tab = this.state.tabs.find((t) => t.id === tabId);
+      let displayUrl = url;
+      
       if (tab) {
-        // Set empty URL and "Blank Page" title for blank-page
-        if (url.includes("blank-page.html")) {
-          tab.url = "";
+        // Set "/" URL and "Blank Page" title for blank-page
+        if (url.includes("blank-page-tab-")) {
+          tab.url = "/";
           tab.title = "Blank Page";
-        } else if (url.startsWith("data:text/html")) {
+          displayUrl = "/";
+        } else if (url.includes("error-page-tab-")) {
           // Error page - set URL to "/" and use actual title
           tab.url = "/";
           tab.title = contents.getTitle() || "Aka Browser cannot open the page";
+          displayUrl = "/";
         } else {
           tab.url = url;
           tab.title = contents.getTitle() || url;
         }
       }
 
-      this.state.mainWindow?.webContents.send("webcontents-did-navigate", url);
+      this.state.mainWindow?.webContents.send("webcontents-did-navigate", displayUrl);
 
       if (this.state.activeTabId === tabId && this.state.mainWindow) {
         this.state.mainWindow.webContents.send("tabs-updated", {
@@ -705,15 +725,19 @@ export class TabManager {
 
     contents.on("did-navigate-in-page", (event: any, url: string) => {
       const tab = this.state.tabs.find((t) => t.id === tabId);
+      let displayUrl = url;
+      
       if (tab) {
-        // Set empty URL and "Blank Page" title for blank-page
-        if (url.includes("blank-page.html")) {
-          tab.url = "";
+        // Set "/" URL and "Blank Page" title for blank-page
+        if (url.includes("blank-page-tab-")) {
+          tab.url = "/";
           tab.title = "Blank Page";
-        } else if (url.startsWith("data:text/html")) {
+          displayUrl = "/";
+        } else if (url.includes("error-page-tab-")) {
           // Error page - set URL to "/" and use actual title
           tab.url = "/";
           tab.title = contents.getTitle() || "Aka Browser cannot open the page";
+          displayUrl = "/";
         } else {
           tab.url = url;
           tab.title = contents.getTitle() || url;
@@ -722,7 +746,7 @@ export class TabManager {
 
       this.state.mainWindow?.webContents.send(
         "webcontents-did-navigate-in-page",
-        url
+        displayUrl
       );
 
       if (this.state.activeTabId === tabId && this.state.mainWindow) {
@@ -758,81 +782,70 @@ export class TabManager {
         // Load error page with details
         // Use app.getAppPath() for correct path in both dev and production
         const { app } = require("electron");
-        const errorPagePath = path.join(
-          app.getAppPath(),
-          "assets",
-          "error-page.html"
-        );
-
-        if (fs.existsSync(errorPagePath)) {
-          const statusText = this.getNetworkErrorText(errorCode, errorDescription);
-          
-          // Read the error page HTML and inject parameters
-          try {
-            let errorPageHtml = fs.readFileSync(errorPagePath, 'utf-8');
-            
-            // Create query string for error details
-            const queryParams = new URLSearchParams({
-              statusCode: Math.abs(errorCode).toString(),
-              statusText: statusText,
-              url: validatedURL,
-              method: 'GET',
-              timestamp: new Date().toISOString()
-            });
-            
-            // Inject query parameters into the HTML by replacing the script section
-            errorPageHtml = errorPageHtml.replace(
-              'window.location.search',
-              `"?${queryParams.toString()}"`
-            );
-            
-            console.log(`[TabManager] Loading error page for error ${errorCode}`);
-
-            // Use setTimeout with a longer delay to ensure the failed load is completely finished
-            setTimeout(() => {
-              if (!contents.isDestroyed()) {
-                console.log(`[TabManager] Attempting to load error page now`);
-                // Load as data URL to avoid file:// protocol restrictions
-                const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(errorPageHtml)}`;
-                contents.loadURL(dataUrl).then(() => {
-                  console.log(`[TabManager] Error page loaded successfully`);
-                  
-                  // Update tab info
-                  const tab = this.state.tabs.find((t) => t.id === tabId);
-                  if (tab) {
-                    tab.url = "/";
-                    tab.title = "Aka Browser cannot open the page";
-                  }
-                  
-                  // Apply error-page theme color immediately
-                  const errorPageThemeColor = "#2d2d2d";
-                  this.state.latestThemeColor = errorPageThemeColor;
-                  if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-                    this.state.mainWindow.webContents.send(
-                      "webcontents-theme-color-updated",
-                      errorPageThemeColor
-                    );
-                  }
-                }).catch((err) => {
-                  console.error(`[TabManager] Failed to load error page:`, err);
-                });
-              } else {
-                console.log(`[TabManager] Contents destroyed, cannot load error page`);
-              }
-            }, 100);
-
-            // Notify renderer about the error
-            this.state.mainWindow?.webContents.send(
-              "webcontents-did-fail-load",
-              errorCode,
-              errorDescription
-            );
-          } catch (err) {
-            console.error(`[TabManager] Failed to read error page:`, err);
-          }
-        } else {
-          console.error(`[TabManager] Error page not found at: ${errorPagePath}`);
+        const distPath = path.join(app.getAppPath(), "dist-renderer");
+        const statusText = this.getNetworkErrorText(errorCode, errorDescription);
+        
+        // Create query params object for error details
+        const queryParamsObj = {
+          statusCode: Math.abs(errorCode).toString(),
+          statusText: statusText,
+          url: validatedURL,
+        };
+        
+        // Generate HTML dynamically with absolute paths
+        const scriptPath = path.join(distPath, "pages", "error-page.js");
+        const cssFile = this.findAssetFile(distPath, "error-page", ".css");
+        const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
+        const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj);
+        
+        // Write to temporary file
+        const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+        if (!fs.existsSync(tmpDir)) {
+          fs.mkdirSync(tmpDir, { recursive: true });
         }
+        const tmpHtmlPath = path.join(tmpDir, `error-page-${tabId}.html`);
+        fs.writeFileSync(tmpHtmlPath, html, "utf-8");
+        
+        console.log(`[TabManager] Loading error page for error ${errorCode}`);
+
+        // Use setTimeout with a longer delay to ensure the failed load is completely finished
+        setTimeout(() => {
+          if (!contents.isDestroyed()) {
+            console.log(`[TabManager] Attempting to load error page now`);
+            // Load error page from temporary file
+            contents.loadFile(tmpHtmlPath).then(() => {
+                console.log(`[TabManager] Error page loaded successfully`);
+                
+                // Update tab info
+                const tab = this.state.tabs.find((t) => t.id === tabId);
+                if (tab) {
+                  tab.url = "/";
+                  tab.title = "Aka Browser cannot open the page";
+                }
+                
+                // Apply error-page theme color immediately
+                const errorPageThemeColor = "#2d2d2d";
+                this.state.latestThemeColor = errorPageThemeColor;
+                if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+                  this.state.mainWindow.webContents.send(
+                    "webcontents-theme-color-updated",
+                    errorPageThemeColor
+                  );
+                }
+              }).catch((err) => {
+                console.error(`[TabManager] Failed to load error page:`, err);
+              });
+            } else {
+              console.log(`[TabManager] Contents destroyed, cannot load error page`);
+            }
+          }, 100);
+
+          // Notify renderer about the error
+          this.state.mainWindow?.webContents.send(
+            "webcontents-did-fail-load",
+            errorCode,
+            errorDescription
+          );
       }
     );
 
@@ -871,40 +884,32 @@ export class TabManager {
           // Load error page with details
           // Use app.getAppPath() for correct path in both dev and production
           const { app } = require("electron");
-          const errorPagePath = path.join(
-            app.getAppPath(),
-            "assets",
-            "error-page.html"
-          );
-
-          // Check if error page exists
-          if (fs.existsSync(errorPagePath)) {
-            const statusText = this.getStatusText(httpResponseCode);
-            
-            // Read the error page HTML and inject parameters
-            try {
-              let errorPageHtml = fs.readFileSync(errorPagePath, 'utf-8');
-              
-              // Create query string for error details
-              const queryParams = new URLSearchParams({
-                statusCode: httpResponseCode.toString(),
-                statusText: statusText,
-                url: originalURL,
-                method: requestMethod,
-                timestamp: new Date().toISOString()
-              });
-              
-              // Inject query parameters into the HTML by replacing the script section
-              errorPageHtml = errorPageHtml.replace(
-                'window.location.search',
-                `"?${queryParams.toString()}"`
-              );
-              
-              // Load as data URL to avoid file:// protocol restrictions
-              const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(errorPageHtml)}`;
-              
-              // Load the error page
-              contents.loadURL(dataUrl).then(() => {
+          const distPath = path.join(app.getAppPath(), "dist-renderer");
+          const statusText = this.getStatusText(httpResponseCode);
+          
+          // Create query params object for error details
+          const queryParamsObj = {
+            statusCode: httpResponseCode.toString(),
+            statusText: statusText,
+            url: originalURL,
+          };
+          
+          // Generate HTML dynamically with absolute paths
+          const scriptPath = path.join(distPath, "pages", "error-page.js");
+          const cssFile = this.findAssetFile(distPath, "error-page", ".css");
+          const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
+          const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj);
+          
+          // Write to temporary file
+          const tmpDir = path.join(app.getPath("temp"), "aka-browser");
+          if (!fs.existsSync(tmpDir)) {
+            fs.mkdirSync(tmpDir, { recursive: true });
+          }
+          const tmpHtmlPath = path.join(tmpDir, `error-page-${tabId}.html`);
+          fs.writeFileSync(tmpHtmlPath, html, "utf-8");
+          
+          // Load the error page from temporary file
+          contents.loadFile(tmpHtmlPath).then(() => {
                 // Update tab info
                 const tab = this.state.tabs.find((t) => t.id === tabId);
                 if (tab) {
@@ -925,17 +930,13 @@ export class TabManager {
                 console.error("Failed to load error page:", err);
               });
 
-              // Notify renderer about the error
-              this.state.mainWindow?.webContents.send(
-                "webcontents-http-error",
-                httpResponseCode,
-                statusText,
-                originalURL
-              );
-            } catch (err) {
-              console.error("Failed to read error page:", err);
-            }
-          }
+            // Notify renderer about the error
+            this.state.mainWindow?.webContents.send(
+              "webcontents-http-error",
+              httpResponseCode,
+              statusText,
+              originalURL
+            );
         }
       }
     );
@@ -1132,5 +1133,27 @@ export class TabManager {
     };
 
     return statusTexts[statusCode] || "Unknown Error";
+  }
+
+  /**
+   * Find asset file by name pattern in dist directory
+   */
+  private findAssetFile(distPath: string, namePattern: string, extension: string): string | null {
+    try {
+      const assetsPath = path.join(distPath, "assets");
+      if (!fs.existsSync(assetsPath)) {
+        return null;
+      }
+
+      const files = fs.readdirSync(assetsPath);
+      const matchingFile = files.find(
+        (file) => file.includes(namePattern) && file.endsWith(extension)
+      );
+
+      return matchingFile ? `assets/${matchingFile}` : null;
+    } catch (error) {
+      console.error(`[TabManager] Failed to find asset file:`, error);
+      return null;
+    }
   }
 }
