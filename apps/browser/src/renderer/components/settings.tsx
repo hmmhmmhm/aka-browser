@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Info, Globe, ChevronRight, ChevronLeft, Star, Trash2, Plus, Edit2, X } from "lucide-react";
+import { Info, ChevronRight, ChevronLeft, Star, Trash2, Plus, Edit2, X } from "lucide-react";
+import appIcon from "../../../assets/icon.png";
 
 interface SettingsProps {
   theme: "light" | "dark";
@@ -70,6 +71,7 @@ const defaultBookmarks: Bookmark[] = [
 function Settings({ theme, orientation, onClose }: SettingsProps) {
   const [currentView, setCurrentView] = useState<"main" | "about" | "bookmarks">("main");
   const [appVersion, setAppVersion] = useState<string>("0.0.0");
+  const [appIconPath, setAppIconPath] = useState<string>("");
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [hiddenDefaultBookmarks, setHiddenDefaultBookmarks] = useState<Set<string>>(new Set());
   const [showBookmarkDialog, setShowBookmarkDialog] = useState(false);
@@ -82,6 +84,9 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
     window.electronAPI?.getAppVersion().then((version: string) => {
       setAppVersion(version);
     });
+
+    // Set app icon path from imported image
+    setAppIconPath(appIcon);
 
     // Load hidden default bookmarks from localStorage
     try {
@@ -405,15 +410,20 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
         <div className="space-y-6">
           {/* App Icon and Name */}
           <div className="flex flex-col items-center py-8">
-            <div
-              className={`w-24 h-24 rounded-3xl flex items-center justify-center mb-4 ${
-                isDark ? "bg-zinc-800" : "bg-zinc-200"
-              }`}
-            >
-              <Globe
-                size={48}
-                className={isDark ? "text-zinc-400" : "text-zinc-600"}
-              />
+            <div className="w-24 h-24 rounded-3xl overflow-hidden mb-4 shadow-lg">
+              {appIconPath ? (
+                <img
+                  src={appIconPath}
+                  alt="Aka Browser"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className={`w-full h-full flex items-center justify-center ${
+                  isDark ? "bg-zinc-800" : "bg-zinc-200"
+                }`}>
+                  <Info size={48} className={isDark ? "text-zinc-400" : "text-zinc-600"} />
+                </div>
+              )}
             </div>
             <h3
               className={`text-2xl font-bold mb-2 ${
