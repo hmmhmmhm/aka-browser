@@ -6,6 +6,8 @@
 
 **Your companion browser for Netflix, Twitter(X), and everything in between.**
 
+🌐 **[Visit our website](https://browser.aka.page)** | 🚀 **Currently in Beta** — Stable Release coming in November!
+
 <img src="https://i.imgur.com/YhQkOP5.png" alt="aka-browser screenshot" width="600"/>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -44,10 +46,6 @@ Think of it as your **always-on-top companion** for those moments when you need 
 
 ## ✨ Key Features
 
-<table>
-<tr>
-<td width="50%">
-
 ### 🖥️ **Browser Essentials**
 
 - 📑 **Multi-tab browsing** with visual switcher
@@ -56,20 +54,12 @@ Think of it as your **always-on-top companion** for those moments when you need 
 - 🎨 **Dynamic theme colors** with LRU cache
 - 🤖 **Smart user agent** switching (mobile/desktop)
 
-</td>
-<td width="50%">
-
 ### 🎬 **DRM Content Ready**
 
 - 🍿 **Netflix, Disney+, Prime Video** support
 - 🔐 **Widevine CDM** integration
 - ✍️ **Castlabs EVS** signed for production
 - 📦 **Packaged builds** for DRM validation
-
-</td>
-</tr>
-<tr>
-<td width="50%">
 
 ### 🎨 **Beautiful Interface**
 
@@ -78,19 +68,12 @@ Think of it as your **always-on-top companion** for those moments when you need 
 - 🌓 **System theme** detection (light/dark)
 - ✨ **Smooth animations** with optimized rendering
 
-</td>
-<td width="50%">
-
 ### 🛠️ **Developer Tools**
 
 - 🔍 **Chrome DevTools** (Cmd+Option+I)
 - 🎯 **Element inspector** via right-click
 - 🔗 **URL bar** with title/domain display
 - 🖥️ **System tray** with always-on-top
-
-</td>
-</tr>
-</table>
 
 ## 🚀 Quick Start
 
