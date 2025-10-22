@@ -194,4 +194,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () => ipcRenderer.removeListener("bookmarks-updated", listener);
     },
   },
+
+  // Favicon cache APIs
+  favicon: {
+    get: (url: string) => ipcRenderer.invoke("favicon-get", url),
+    getWithFallback: (pageUrl: string) => ipcRenderer.invoke("favicon-get-with-fallback", pageUrl),
+    isCached: (url: string) => ipcRenderer.invoke("favicon-is-cached", url),
+    clearCache: () => ipcRenderer.invoke("favicon-clear-cache"),
+    getCacheSize: () => ipcRenderer.invoke("favicon-get-cache-size"),
+  },
 });

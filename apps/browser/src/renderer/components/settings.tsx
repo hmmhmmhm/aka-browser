@@ -109,7 +109,29 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
   const loadBookmarks = async () => {
     try {
       const allBookmarks = await window.electronAPI?.bookmarks?.getAll();
-      setBookmarks(allBookmarks || []);
+      
+      // Load cached favicons for bookmarks that don't have data URLs
+      if (allBookmarks) {
+        const bookmarksWithFavicons = await Promise.all(
+          allBookmarks.map(async (bookmark) => {
+            // If favicon exists and is not a data URL, try to get cached version
+            if (bookmark.favicon && !bookmark.favicon.startsWith('data:')) {
+              try {
+                const cachedFavicon = await window.electronAPI?.favicon?.getWithFallback(bookmark.url);
+                if (cachedFavicon) {
+                  return { ...bookmark, favicon: cachedFavicon };
+                }
+              } catch (error) {
+                console.error("Failed to load cached favicon:", error);
+              }
+            }
+            return bookmark;
+          })
+        );
+        setBookmarks(bookmarksWithFavicons);
+      } else {
+        setBookmarks([]);
+      }
     } catch (error) {
       console.error("Failed to load bookmarks:", error);
       setBookmarks([]);

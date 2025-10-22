@@ -7,6 +7,7 @@ import { AppState } from "./types";
 import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
 import { BookmarkManager } from "./bookmark-manager";
+import { FaviconCache } from "./favicon-cache";
 import { isValidUrl, sanitizeUrl, getUserAgentForUrl, logSecurityEvent } from "./security";
 import { ThemeColorCache } from "./theme-cache";
 
@@ -15,6 +16,7 @@ export class IPCHandlers {
   private tabManager: TabManager;
   private windowManager: WindowManager;
   private bookmarkManager: BookmarkManager;
+  private faviconCache: FaviconCache;
   private themeColorCache: ThemeColorCache;
 
   constructor(
@@ -22,12 +24,14 @@ export class IPCHandlers {
     tabManager: TabManager,
     windowManager: WindowManager,
     bookmarkManager: BookmarkManager,
+    faviconCache: FaviconCache,
     themeColorCache: ThemeColorCache
   ) {
     this.state = state;
     this.tabManager = tabManager;
     this.windowManager = windowManager;
     this.bookmarkManager = bookmarkManager;
+    this.faviconCache = faviconCache;
     this.themeColorCache = themeColorCache;
   }
 
@@ -42,6 +46,7 @@ export class IPCHandlers {
     this.registerOrientationHandlers();
     this.registerAppHandlers();
     this.registerBookmarkHandlers();
+    this.registerFaviconHandlers();
   }
 
   /**
@@ -431,6 +436,36 @@ export class IPCHandlers {
     ipcMain.handle("bookmarks-clear", () => {
       this.bookmarkManager.clear();
       this.notifyBookmarkUpdate();
+    });
+  }
+
+  /**
+   * Register favicon cache handlers
+   */
+  private registerFaviconHandlers(): void {
+    // Get favicon with caching
+    ipcMain.handle("favicon-get", async (_event, url: string) => {
+      return this.faviconCache.getFavicon(url);
+    });
+
+    // Get favicon with fallback sources
+    ipcMain.handle("favicon-get-with-fallback", async (_event, pageUrl: string) => {
+      return this.faviconCache.getFaviconWithFallback(pageUrl);
+    });
+
+    // Check if favicon is cached
+    ipcMain.handle("favicon-is-cached", (_event, url: string) => {
+      return this.faviconCache.isCached(url);
+    });
+
+    // Clear favicon cache
+    ipcMain.handle("favicon-clear-cache", () => {
+      this.faviconCache.clearCache();
+    });
+
+    // Get cache size
+    ipcMain.handle("favicon-get-cache-size", () => {
+      return this.faviconCache.getCacheSize();
     });
   }
 }

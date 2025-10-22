@@ -124,6 +124,15 @@ export interface ElectronAPI {
     clear: () => Promise<void>;
     onUpdate: (callback: () => void) => () => void;
   };
+
+  // Favicon cache APIs
+  favicon: {
+    get: (url: string) => Promise<string | null>;
+    getWithFallback: (pageUrl: string) => Promise<string | null>;
+    isCached: (url: string) => Promise<boolean>;
+    clearCache: () => Promise<void>;
+    getCacheSize: () => Promise<number>;
+  };
 }
 
 declare global {
