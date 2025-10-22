@@ -32,6 +32,7 @@
   "author": "hmmhmmhm",
   "license": "MIT",
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^20.11.0",
     "@types/react": "^19.2.2",
@@ -66,6 +67,7 @@
       "!node_modules/**/*"
     ],
     "afterPack": "scripts/evs-sign.js",
+    "afterSign": "scripts/notarize.js",
     "mac": {
       "target": [
         {
@@ -78,8 +80,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "identity": null
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
       "target": "nsis",
