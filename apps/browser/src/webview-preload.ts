@@ -601,7 +601,7 @@ function setupNavigationGestures() {
 setupNavigationGestures();
 
 // ============================================================================
-// Expose Bookmark API to webview (for start-page.html)
+// Expose Bookmark API to webview (for blank-page.html)
 // ============================================================================
 
 contextBridge.exposeInMainWorld("electronAPI", {

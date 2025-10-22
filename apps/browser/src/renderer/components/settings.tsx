@@ -31,7 +31,7 @@ interface Bookmark {
   updatedAt: number;
 }
 
-// Default bookmarks (same as start-page.html)
+// Default bookmarks (same as blank-page.html)
 const defaultBookmarks: Bookmark[] = [
   {
     id: "default-google",

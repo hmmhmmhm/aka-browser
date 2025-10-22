@@ -75,7 +75,7 @@ function MenuOverlay({
     onOpenSettings();
   };
 
-  const isStartPage = currentUrl.startsWith("file://") && currentUrl.includes("start-page.html");
+  const isBlankPage = currentUrl.startsWith("file://") && currentUrl.includes("blank-page.html");
 
   return (
     <div
@@ -91,7 +91,7 @@ function MenuOverlay({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="py-2">
-          {!isStartPage && (
+          {!isBlankPage && (
             <button
               onClick={handleToggleBookmark}
               className={`w-full px-4 py-3 flex items-center gap-3 transition-colors ${

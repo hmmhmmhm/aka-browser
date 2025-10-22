@@ -71,31 +71,31 @@ export class TabManager {
     const tab: Tab = {
       id: tabId,
       view,
-      title: "New Tab",
+      title: !url || url.trim() === "" ? "Blank Page" : "New Tab",
       url,
     };
 
     this.state.tabs.push(tab);
     this.setupWebContentsViewHandlers(view, tabId);
 
-    // Load URL or start page
+    // Load URL or blank page
     if (!url || url.trim() === "") {
-      // Load start page for blank tabs
+      // Load blank page for blank tabs
       const { app } = require("electron");
-      const startPagePath = path.join(app.getAppPath(), "assets", "start-page.html");
+      const blankPagePath = path.join(app.getAppPath(), "assets", "blank-page.html");
       
-      // Immediately set start-page theme color before loading
-      const startPageThemeColor = "#1c1c1e";
-      this.state.latestThemeColor = startPageThemeColor;
+      // Immediately set blank-page theme color before loading
+      const blankPageThemeColor = "#1c1c1e";
+      this.state.latestThemeColor = blankPageThemeColor;
       if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
         this.state.mainWindow.webContents.send(
           "webcontents-theme-color-updated",
-          startPageThemeColor
+          blankPageThemeColor
         );
       }
       
-      view.webContents.loadFile(startPagePath).catch((err) => {
-        console.error("[TabManager] Failed to load start page:", err);
+      view.webContents.loadFile(blankPagePath).catch((err) => {
+        console.error("[TabManager] Failed to load blank page:", err);
       });
     } else {
       const sanitized = sanitizeUrl(url);
@@ -135,13 +135,22 @@ export class TabManager {
     // Immediately apply theme color for the switched tab
     const url = tab.view.webContents.getURL();
     if (url) {
-      // Check if it's start-page
-      if (url.includes("start-page.html")) {
-        const startPageThemeColor = "#1c1c1e";
-        this.state.latestThemeColor = startPageThemeColor;
+      // Check if it's blank-page
+      if (url.includes("blank-page.html")) {
+        const blankPageThemeColor = "#1c1c1e";
+        this.state.latestThemeColor = blankPageThemeColor;
         this.state.mainWindow.webContents.send(
           "webcontents-theme-color-updated",
-          startPageThemeColor
+          blankPageThemeColor
+        );
+        tab.title = "Blank Page";
+      } else if (url.startsWith("data:text/html")) {
+        // Error page - apply error-page theme color
+        const errorPageThemeColor = "#2d2d2d";
+        this.state.latestThemeColor = errorPageThemeColor;
+        this.state.mainWindow.webContents.send(
+          "webcontents-theme-color-updated",
+          errorPageThemeColor
         );
       } else {
         // Try to get cached theme color for regular pages
@@ -665,8 +674,18 @@ export class TabManager {
     contents.on("did-navigate", (event: any, url: string) => {
       const tab = this.state.tabs.find((t) => t.id === tabId);
       if (tab) {
-        tab.url = url;
-        tab.title = contents.getTitle() || url;
+        // Set empty URL and "Blank Page" title for blank-page
+        if (url.includes("blank-page.html")) {
+          tab.url = "";
+          tab.title = "Blank Page";
+        } else if (url.startsWith("data:text/html")) {
+          // Error page - set URL to "/" and use actual title
+          tab.url = "/";
+          tab.title = contents.getTitle() || "Aka Browser cannot open the page";
+        } else {
+          tab.url = url;
+          tab.title = contents.getTitle() || url;
+        }
       }
 
       this.state.mainWindow?.webContents.send("webcontents-did-navigate", url);
@@ -687,8 +706,18 @@ export class TabManager {
     contents.on("did-navigate-in-page", (event: any, url: string) => {
       const tab = this.state.tabs.find((t) => t.id === tabId);
       if (tab) {
-        tab.url = url;
-        tab.title = contents.getTitle() || url;
+        // Set empty URL and "Blank Page" title for blank-page
+        if (url.includes("blank-page.html")) {
+          tab.url = "";
+          tab.title = "Blank Page";
+        } else if (url.startsWith("data:text/html")) {
+          // Error page - set URL to "/" and use actual title
+          tab.url = "/";
+          tab.title = contents.getTitle() || "Aka Browser cannot open the page";
+        } else {
+          tab.url = url;
+          tab.title = contents.getTitle() || url;
+        }
       }
 
       this.state.mainWindow?.webContents.send(
@@ -767,6 +796,23 @@ export class TabManager {
                 const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(errorPageHtml)}`;
                 contents.loadURL(dataUrl).then(() => {
                   console.log(`[TabManager] Error page loaded successfully`);
+                  
+                  // Update tab info
+                  const tab = this.state.tabs.find((t) => t.id === tabId);
+                  if (tab) {
+                    tab.url = "/";
+                    tab.title = "Aka Browser cannot open the page";
+                  }
+                  
+                  // Apply error-page theme color immediately
+                  const errorPageThemeColor = "#2d2d2d";
+                  this.state.latestThemeColor = errorPageThemeColor;
+                  if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+                    this.state.mainWindow.webContents.send(
+                      "webcontents-theme-color-updated",
+                      errorPageThemeColor
+                    );
+                  }
                 }).catch((err) => {
                   console.error(`[TabManager] Failed to load error page:`, err);
                 });
@@ -858,7 +904,24 @@ export class TabManager {
               const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(errorPageHtml)}`;
               
               // Load the error page
-              contents.loadURL(dataUrl).catch((err) => {
+              contents.loadURL(dataUrl).then(() => {
+                // Update tab info
+                const tab = this.state.tabs.find((t) => t.id === tabId);
+                if (tab) {
+                  tab.url = "/";
+                  tab.title = "Aka Browser cannot open the page";
+                }
+                
+                // Apply error-page theme color immediately
+                const errorPageThemeColor = "#2d2d2d";
+                this.state.latestThemeColor = errorPageThemeColor;
+                if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+                  this.state.mainWindow.webContents.send(
+                    "webcontents-theme-color-updated",
+                    errorPageThemeColor
+                  );
+                }
+              }).catch((err) => {
                 console.error("Failed to load error page:", err);
               });
 

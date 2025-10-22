@@ -254,7 +254,12 @@ export class IPCHandlers {
         return "";
       }
       if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
-        return this.state.webContentsView.webContents.getURL();
+        const url = this.state.webContentsView.webContents.getURL();
+        // Return "/" for blank-page and error-page
+        if (url.includes("blank-page.html") || url.startsWith("data:text/html")) {
+          return "/";
+        }
+        return url;
       }
       return "";
     });
@@ -265,6 +270,15 @@ export class IPCHandlers {
         return "";
       }
       if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
+        const url = this.state.webContentsView.webContents.getURL();
+        // Return "Blank Page" for blank-page
+        if (url.includes("blank-page.html")) {
+          return "Blank Page";
+        }
+        // Return actual title for error-page (it's set in the HTML)
+        if (url.startsWith("data:text/html")) {
+          return this.state.webContentsView.webContents.getTitle();
+        }
         return this.state.webContentsView.webContents.getTitle();
       }
       return "";

@@ -10,7 +10,7 @@ function App() {
   const [_time, setTime] = useState("9:41");
   const [pageTitle, setPageTitle] = useState("New Tab");
   const [pageDomain, setPageDomain] = useState("");
-  const [themeColor, setThemeColor] = useState("#1c1c1e"); // Start with start-page color
+  const [themeColor, setThemeColor] = useState("#1c1c1e"); // Start with blank-page color
   const [textColor, setTextColor] = useState("#ffffff"); // White text for dark background
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("dark");
   const [currentUrl, setCurrentUrl] = useState("");
