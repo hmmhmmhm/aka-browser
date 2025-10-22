@@ -1,21 +1,25 @@
 import { notarize } from '@electron/notarize';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// Load .env.local file
+dotenv.config({ path: path.join(__dirname, '..', '.env.local') });
 
 export default async function notarizing(context: any) {
   const { electronPlatformName, appOutDir } = context;
-  
-  // macOS만 공증
+
+  // Only notarize on macOS
   if (electronPlatformName !== 'darwin') {
     return;
   }
 
-  // 환경 변수 확인
+  // Check environment variables
   const appleId = process.env.APPLE_ID;
   const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
   const teamId = process.env.APPLE_TEAM_ID;
 
   if (!appleId || !appleIdPassword || !teamId) {
-    console.warn('⚠️  공증을 건너뜁니다. 환경 변수를 설정하세요:');
+    console.warn('⚠️  Skipping notarization. Please set environment variables:');
     console.warn('   APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID');
     return;
   }
@@ -23,7 +27,7 @@ export default async function notarizing(context: any) {
   const appName = context.packager.appInfo.productFilename;
   const appPath = path.join(appOutDir, `${appName}.app`);
 
-  console.log(`🔐 공증 시작: ${appPath}`);
+  console.log(`🔐 Starting notarization: ${appPath}`);
 
   try {
     await notarize({
@@ -32,9 +36,9 @@ export default async function notarizing(context: any) {
       appleIdPassword,
       teamId,
     });
-    console.log('✅ 공증 완료!');
+    console.log('✅ Notarization completed!');
   } catch (error) {
-    console.error('❌ 공증 실패:', error);
+    console.error('❌ Notarization failed:', error);
     throw error;
   }
 }
