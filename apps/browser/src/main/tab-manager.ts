@@ -136,10 +136,8 @@ export class TabManager {
         // In production, generate HTML and load from temporary file
         const distPath = path.join(app.getAppPath(), "dist-renderer");
         const scriptPath = path.join(distPath, "pages", "blank-page.js");
-        const cssFile = this.findAssetFile(distPath, "blank-page", ".css");
-        const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
         
-        const html = generateBlankPageHtml(scriptPath, cssPath, false);
+        const html = generateBlankPageHtml(scriptPath, undefined, false);
         
         // Write to temporary file
         const tmpDir = path.join(app.getPath("temp"), "aka-browser");
@@ -899,9 +897,7 @@ export class TabManager {
               // In production, generate HTML and load from temporary file
               const distPath = path.join(app.getAppPath(), "dist-renderer");
               const scriptPath = path.join(distPath, "pages", "error-page.js");
-              const cssFile = this.findAssetFile(distPath, "error-page", ".css");
-              const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
-              const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj, false);
+              const html = generateErrorPageHtml(scriptPath, undefined, queryParamsObj, false);
               
               // Write to temporary file
               const tmpDir = path.join(app.getPath("temp"), "aka-browser");
@@ -1051,9 +1047,7 @@ export class TabManager {
             // In production, generate HTML and load from temporary file
             const distPath = path.join(app.getAppPath(), "dist-renderer");
             const scriptPath = path.join(distPath, "pages", "error-page.js");
-            const cssFile = this.findAssetFile(distPath, "error-page", ".css");
-            const cssPath = cssFile ? path.join(distPath, cssFile) : undefined;
-            const html = generateErrorPageHtml(scriptPath, cssPath, queryParamsObj, false);
+            const html = generateErrorPageHtml(scriptPath, undefined, queryParamsObj, false);
             
             // Write to temporary file
             const tmpDir = path.join(app.getPath("temp"), "aka-browser");
@@ -1291,25 +1285,4 @@ export class TabManager {
     return statusTexts[statusCode] || "Unknown Error";
   }
 
-  /**
-   * Find asset file by name pattern in dist directory
-   */
-  private findAssetFile(distPath: string, namePattern: string, extension: string): string | null {
-    try {
-      const assetsPath = path.join(distPath, "assets");
-      if (!fs.existsSync(assetsPath)) {
-        return null;
-      }
-
-      const files = fs.readdirSync(assetsPath);
-      const matchingFile = files.find(
-        (file) => file.includes(namePattern) && file.endsWith(extension)
-      );
-
-      return matchingFile ? `assets/${matchingFile}` : null;
-    } catch (error) {
-      console.error(`[TabManager] Failed to find asset file:`, error);
-      return null;
-    }
-  }
 }

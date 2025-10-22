@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import './error-page.css';
 
 interface ErrorInfo {
   statusCode: string;
@@ -129,10 +128,73 @@ export default function ErrorPage() {
   }, []);
 
   return (
-    <div className="error-container">
-      <h1 className="error-title">{errorMessage.title}</h1>
-      <p className="error-description">{errorMessage.desc}</p>
-      <p className="error-url">{decodeURIComponent(errorInfo.url)}</p>
-    </div>
+    <>
+      <style>{`
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family:
+            -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+            Arial, sans-serif;
+          background: #2d2d2d;
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          color: #b8b8b8;
+        }
+
+        .error-container {
+          text-align: center;
+          max-width: 600px;
+        }
+
+        .error-title {
+          font-size: 28px;
+          font-weight: 400;
+          margin-bottom: 20px;
+          color: #b8b8b8;
+          letter-spacing: -0.5px;
+          text-wrap: balance;
+          word-break: keep-all;
+        }
+
+        .error-description {
+          font-size: 15px;
+          line-height: 1.6;
+          color: #8e8e8e;
+          margin-bottom: 10px;
+          text-wrap: balance;
+          word-break: keep-all;
+        }
+
+        .error-url {
+          font-size: 13px;
+          color: #6e6e6e;
+          word-break: break-all;
+          margin-top: 5px;
+        }
+
+        @media (max-width: 600px) {
+          .error-title {
+            font-size: 24px;
+          }
+
+          .error-description {
+            font-size: 14px;
+          }
+        }
+      `}</style>
+      <div className="error-container">
+        <h1 className="error-title">{errorMessage.title}</h1>
+        <p className="error-description">{errorMessage.desc}</p>
+        <p className="error-url">{decodeURIComponent(errorInfo.url)}</p>
+      </div>
+    </>
   );
 }
