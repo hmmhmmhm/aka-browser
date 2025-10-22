@@ -366,7 +366,22 @@ export class IPCHandlers {
   }
 
   /**
-   * Register bookmark handlers
+   * Notify all windows about bookmark updates
+   */
+  private notifyBookmarkUpdate(): void {
+    // Notify main window
+    if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+      this.state.mainWindow.webContents.send("bookmarks-updated");
+    }
+    
+    // Notify WebContentsView
+    if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
+      this.state.webContentsView.webContents.send("bookmarks-updated");
+    }
+  }
+
+  /**
+   * Register bookmark management handlers
    */
   private registerBookmarkHandlers(): void {
     // Get all bookmarks
@@ -387,50 +402,35 @@ export class IPCHandlers {
     // Add bookmark
     ipcMain.handle("bookmarks-add", (_event, title: string, url: string, favicon?: string) => {
       const bookmark = this.bookmarkManager.add(title, url, favicon);
-      // Notify all windows about bookmark update
-      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-        this.state.mainWindow.webContents.send("bookmarks-updated");
-      }
+      this.notifyBookmarkUpdate();
       return bookmark;
     });
 
     // Update bookmark
     ipcMain.handle("bookmarks-update", (_event, id: string, updates: any) => {
       const bookmark = this.bookmarkManager.update(id, updates);
-      // Notify all windows about bookmark update
-      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-        this.state.mainWindow.webContents.send("bookmarks-updated");
-      }
+      this.notifyBookmarkUpdate();
       return bookmark;
     });
 
     // Remove bookmark
     ipcMain.handle("bookmarks-remove", (_event, id: string) => {
       const result = this.bookmarkManager.remove(id);
-      // Notify all windows about bookmark update
-      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-        this.state.mainWindow.webContents.send("bookmarks-updated");
-      }
+      this.notifyBookmarkUpdate();
       return result;
     });
 
     // Remove bookmark by URL
     ipcMain.handle("bookmarks-remove-by-url", (_event, url: string) => {
       const result = this.bookmarkManager.removeByUrl(url);
-      // Notify all windows about bookmark update
-      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-        this.state.mainWindow.webContents.send("bookmarks-updated");
-      }
+      this.notifyBookmarkUpdate();
       return result;
     });
 
     // Clear all bookmarks
     ipcMain.handle("bookmarks-clear", () => {
       this.bookmarkManager.clear();
-      // Notify all windows about bookmark update
-      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-        this.state.mainWindow.webContents.send("bookmarks-updated");
-      }
+      this.notifyBookmarkUpdate();
     });
   }
 }

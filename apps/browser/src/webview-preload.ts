@@ -1,7 +1,7 @@
 // Preload script for WebContentsView (embedded web content)
 // This runs in the context of loaded web pages with limited privileges
 
-import { ipcRenderer } from "electron";
+import { ipcRenderer, contextBridge } from "electron";
 
 // ============================================================================
 // Fullscreen API Polyfill (Plan 1.5 - Final)
@@ -599,3 +599,24 @@ function setupNavigationGestures() {
 
 // Setup gesture detection immediately
 setupNavigationGestures();
+
+// ============================================================================
+// Expose Bookmark API to webview (for start-page.html)
+// ============================================================================
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  bookmarks: {
+    getAll: () => ipcRenderer.invoke("bookmarks-get-all"),
+    add: (title: string, url: string, favicon?: string) =>
+      ipcRenderer.invoke("bookmarks-add", title, url, favicon),
+    remove: (id: string) => ipcRenderer.invoke("bookmarks-remove", id),
+    update: (id: string, updates: { title?: string; url?: string; favicon?: string }) =>
+      ipcRenderer.invoke("bookmarks-update", id, updates),
+    clear: () => ipcRenderer.invoke("bookmarks-clear"),
+    onUpdate: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("bookmarks-updated", listener);
+      return () => ipcRenderer.removeListener("bookmarks-updated", listener);
+    },
+  },
+});

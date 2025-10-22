@@ -216,8 +216,35 @@
           const grid = document.getElementById("bookmarksGrid");
           const emptyState = document.getElementById("emptyState");
 
-          // Use user bookmarks if available, otherwise use defaults
-          const displayBookmarks = (bookmarks && bookmarks.length > 0) ? bookmarks : defaultBookmarks;
+          // Load hidden default bookmarks from localStorage
+          let hiddenDefaults = [];
+          try {
+            const hidden = localStorage.getItem("hiddenDefaultBookmarks");
+            if (hidden) {
+              hiddenDefaults = JSON.parse(hidden);
+            }
+          } catch (error) {
+            console.error("Failed to load hidden bookmarks:", error);
+          }
+
+          // Filter out hidden default bookmarks
+          const visibleDefaults = defaultBookmarks.filter(
+            (bookmark) => !hiddenDefaults.includes(bookmark.id)
+          );
+
+          // Combine user bookmarks and visible default bookmarks
+          const userBookmarks = bookmarks || [];
+          const displayBookmarks = [...userBookmarks, ...visibleDefaults];
+
+          console.log("[Start Page] User bookmarks:", userBookmarks.length, userBookmarks);
+          console.log("[Start Page] Visible defaults:", visibleDefaults.length, visibleDefaults);
+          console.log("[Start Page] Total display bookmarks:", displayBookmarks.length, displayBookmarks);
+
+          if (displayBookmarks.length === 0) {
+            grid.style.display = "none";
+            emptyState.style.display = "block";
+            return;
+          }
 
           grid.style.display = "grid";
           emptyState.style.display = "none";

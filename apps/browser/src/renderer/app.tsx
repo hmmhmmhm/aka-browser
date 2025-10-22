@@ -576,7 +576,14 @@ function App() {
   };
 
   const handleShowMenu = () => {
-    setShowMenu(true);
+    if (showSettings) {
+      // If settings is open, close it and show WebContentsView
+      handleCloseSettings();
+    } else {
+      // Hide WebContentsView and show settings directly
+      window.electronAPI?.webContents.setVisible(false);
+      setShowSettings(true);
+    }
   };
 
   const handleCloseMenu = () => {
@@ -585,8 +592,7 @@ function App() {
 
   const handleOpenSettingsFromMenu = () => {
     setShowSettings(true);
-    // Hide WebContentsView when showing settings
-    window.electronAPI?.webContents.setVisible(false);
+    // WebContentsView is already hidden
   };
 
   return (

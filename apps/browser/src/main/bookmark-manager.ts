@@ -26,6 +26,22 @@ export class BookmarkManager {
   }
 
   /**
+   * Normalize URL by ensuring it has a protocol
+   */
+  private normalizeUrl(url: string): string {
+    // Trim whitespace
+    url = url.trim();
+    
+    // If URL already has a protocol, return as is
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) {
+      return url;
+    }
+    
+    // Add https:// by default
+    return `https://${url}`;
+  }
+
+  /**
    * Load bookmarks from file
    */
   private loadBookmarks(): void {
@@ -75,18 +91,20 @@ export class BookmarkManager {
    * Check if URL is bookmarked
    */
   isBookmarked(url: string): boolean {
-    return this.bookmarks.some((b) => b.url === url);
+    const normalizedUrl = this.normalizeUrl(url);
+    return this.bookmarks.some((b) => b.url === normalizedUrl);
   }
 
   /**
    * Add a new bookmark
    */
   add(title: string, url: string, favicon?: string): Bookmark {
+    const normalizedUrl = this.normalizeUrl(url);
     const now = Date.now();
     const bookmark: Bookmark = {
       id: `bookmark-${now}-${Math.random().toString(36).substr(2, 9)}`,
       title,
-      url,
+      url: normalizedUrl,
       favicon,
       createdAt: now,
       updatedAt: now,
@@ -94,7 +112,7 @@ export class BookmarkManager {
 
     this.bookmarks.push(bookmark);
     this.saveBookmarks();
-    console.log(`[BookmarkManager] Added bookmark: ${title} (${url})`);
+    console.log(`[BookmarkManager] Added bookmark: ${title} (${normalizedUrl})`);
     return bookmark;
   }
 
@@ -106,6 +124,11 @@ export class BookmarkManager {
     if (index === -1) {
       console.error(`[BookmarkManager] Bookmark not found: ${id}`);
       return null;
+    }
+
+    // Normalize URL if it's being updated
+    if (updates.url) {
+      updates.url = this.normalizeUrl(updates.url);
     }
 
     this.bookmarks[index] = {
@@ -139,9 +162,10 @@ export class BookmarkManager {
    * Remove bookmark by URL
    */
   removeByUrl(url: string): boolean {
-    const index = this.bookmarks.findIndex((b) => b.url === url);
+    const normalizedUrl = this.normalizeUrl(url);
+    const index = this.bookmarks.findIndex((b) => b.url === normalizedUrl);
     if (index === -1) {
-      console.error(`[BookmarkManager] Bookmark not found for URL: ${url}`);
+      console.error(`[BookmarkManager] Bookmark not found for URL: ${normalizedUrl}`);
       return false;
     }
 
