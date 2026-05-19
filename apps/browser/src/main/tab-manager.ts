@@ -19,6 +19,11 @@ import {
   logSecurityEvent,
 } from "./security";
 import { classifyNavigationTarget } from "./security-policy";
+import {
+  PermissionManager,
+  SitePermission,
+  normalizeOrigin,
+} from "./permission-manager";
 import { ThemeColorCache } from "./theme-cache";
 import { loadBlankPage } from "./tabs/tab-page-loader";
 import {
@@ -30,10 +35,16 @@ import { setupNavigationHandlers } from "./tabs/tab-navigation";
 export class TabManager {
   private state: AppState;
   private themeColorCache: ThemeColorCache;
+  private permissionManager: PermissionManager;
 
-  constructor(state: AppState, themeColorCache: ThemeColorCache) {
+  constructor(
+    state: AppState,
+    themeColorCache: ThemeColorCache,
+    permissionManager: PermissionManager
+  ) {
     this.state = state;
     this.themeColorCache = themeColorCache;
+    this.permissionManager = permissionManager;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -66,16 +77,8 @@ export class TabManager {
 
     // Enable Widevine CDM for this webContents
     view.webContents.session.setPermissionRequestHandler(
-      (
-        _webContents: any,
-        permission: string,
-        callback: (result: boolean) => void
-      ) => {
-        if (permission === "media" || permission === "fullscreen") {
-          callback(true);
-        } else {
-          callback(false);
-        }
+      (webContents: any, permission: string, callback: (result: boolean) => void, details?: any) => {
+        callback(this.shouldGrantPermission(webContents, permission, details));
       }
     );
 
@@ -112,6 +115,31 @@ export class TabManager {
     }
 
     return tab;
+  }
+
+  private shouldGrantPermission(
+    webContents: Electron.WebContents,
+    permission: string,
+    details?: { requestingUrl?: string; embeddingOrigin?: string }
+  ): boolean {
+    const sitePermission = toSitePermission(permission);
+    if (!sitePermission) {
+      logSecurityEvent(`Permission denied: ${permission}`);
+      return false;
+    }
+
+    const origin = normalizeOrigin(
+      details?.requestingUrl || details?.embeddingOrigin || webContents.getURL()
+    );
+    if (!origin) {
+      return sitePermission === "media" || sitePermission === "fullscreen";
+    }
+
+    const decision = this.permissionManager.getDecision(origin, sitePermission);
+    if (decision === "allow") return true;
+    if (decision === "block") return false;
+
+    return sitePermission === "media" || sitePermission === "fullscreen";
   }
 
   /** Switch the active tab, updating the window's child-view stack. */
@@ -397,4 +425,17 @@ export class TabManager {
       (id) => this.captureTabPreview(id)
     );
   }
+}
+
+function toSitePermission(permission: string): SitePermission | null {
+  if (permission === "clipboard-sanitized-write") return "clipboard-write";
+  if (
+    permission === "media" ||
+    permission === "clipboard-read" ||
+    permission === "clipboard-write" ||
+    permission === "fullscreen"
+  ) {
+    return permission;
+  }
+  return null;
 }

@@ -216,4 +216,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     clearCache: () => ipcRenderer.invoke("favicon-clear-cache"),
     getCacheSize: () => ipcRenderer.invoke("favicon-get-cache-size"),
   },
+
+  // Site permission APIs
+  permissions: {
+    list: () => ipcRenderer.invoke("permissions-list"),
+    set: (origin: string, permission: string, decision: string) =>
+      ipcRenderer.invoke("permissions-set", origin, permission, decision),
+    clear: (origin?: string) => ipcRenderer.invoke("permissions-clear", origin),
+  },
 });

@@ -44,6 +44,20 @@ interface LanguageState {
   systemLanguage: EffectiveLanguage;
 }
 
+type SitePermission =
+  | "media"
+  | "clipboard-read"
+  | "clipboard-write"
+  | "fullscreen";
+type PermissionDecision = "allow" | "block" | "prompt";
+
+interface SitePermissionEntry {
+  origin: string;
+  permission: SitePermission;
+  decision: Exclude<PermissionDecision, "prompt">;
+  updatedAt: number;
+}
+
 export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
@@ -145,6 +159,17 @@ export interface ElectronAPI {
     isCached: (url: string) => Promise<boolean>;
     clearCache: () => Promise<void>;
     getCacheSize: () => Promise<number>;
+  };
+
+  // Site permission APIs
+  permissions: {
+    list: () => Promise<SitePermissionEntry[]>;
+    set: (
+      origin: string,
+      permission: SitePermission,
+      decision: PermissionDecision
+    ) => Promise<SitePermissionEntry[]>;
+    clear: (origin?: string) => Promise<SitePermissionEntry[]>;
   };
 }
 

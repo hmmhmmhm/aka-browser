@@ -10,10 +10,12 @@ import { BookmarkManager } from "./bookmark-manager";
 import { FaviconCache } from "./favicon-cache";
 import { isValidUrl, sanitizeUrl, getUserAgentForUrl, logSecurityEvent } from "./security";
 import { ThemeColorCache } from "./theme-cache";
+import { PermissionManager } from "./permission-manager";
 import {
   registerBookmarkHandlers,
   registerFaviconHandlers,
 } from "./ipc/bookmark-favicon-handlers";
+import { registerPermissionHandlers } from "./ipc/permission-handlers";
 import { LanguageManager } from "./language-manager";
 
 export class IPCHandlers {
@@ -24,6 +26,7 @@ export class IPCHandlers {
   private faviconCache: FaviconCache;
   private themeColorCache: ThemeColorCache;
   private languageManager: LanguageManager;
+  private permissionManager: PermissionManager;
 
   constructor(
     state: AppState,
@@ -32,7 +35,8 @@ export class IPCHandlers {
     bookmarkManager: BookmarkManager,
     faviconCache: FaviconCache,
     themeColorCache: ThemeColorCache,
-    languageManager: LanguageManager
+    languageManager: LanguageManager,
+    permissionManager: PermissionManager
   ) {
     this.state = state;
     this.tabManager = tabManager;
@@ -41,6 +45,7 @@ export class IPCHandlers {
     this.faviconCache = faviconCache;
     this.themeColorCache = themeColorCache;
     this.languageManager = languageManager;
+    this.permissionManager = permissionManager;
   }
 
   /**
@@ -53,6 +58,7 @@ export class IPCHandlers {
     this.registerThemeHandlers();
     this.registerOrientationHandlers();
     this.registerAppHandlers();
+    registerPermissionHandlers(this.state, this.permissionManager);
     registerBookmarkHandlers(this.state, this.bookmarkManager);
     registerFaviconHandlers(this.faviconCache);
   }

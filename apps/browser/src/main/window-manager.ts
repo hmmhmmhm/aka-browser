@@ -221,28 +221,6 @@ export class WindowManager {
     const initialTab = this.tabManager.createTab("");
     this.tabManager.switchToTab(initialTab.id);
 
-    // Set permission request handler
-    if (this.state.webContentsView) {
-      this.state.webContentsView.webContents.session.setPermissionRequestHandler(
-        (webContents, permission, callback) => {
-          const allowedPermissions = [
-            "clipboard-read",
-            "clipboard-write",
-            "media",
-            "fullscreen", // Allow fullscreen - handled by Electron native events
-          ];
-
-          if (allowedPermissions.includes(permission)) {
-            logSecurityEvent(`Permission granted: ${permission}`);
-            callback(true);
-          } else {
-            logSecurityEvent(`Permission denied: ${permission}`);
-            callback(false);
-          }
-        }
-      );
-    }
-
     // Set security headers
     this.setupSecurityHeaders();
 

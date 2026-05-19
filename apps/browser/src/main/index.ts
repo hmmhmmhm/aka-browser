@@ -9,6 +9,7 @@ import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
 import { BookmarkManager } from "./bookmark-manager";
 import { FaviconCache } from "./favicon-cache";
+import { PermissionManager } from "./permission-manager";
 import { IPCHandlers } from "./ipc-handlers";
 import { TrayManager } from "./tray-manager";
 import { AppLifecycle } from "./app-lifecycle";
@@ -36,10 +37,11 @@ const appState: AppState = {
 const themeColorCache = new ThemeColorCache();
 const bookmarkManager = new BookmarkManager();
 const faviconCache = new FaviconCache();
-const tabManager = new TabManager(appState, themeColorCache);
+const permissionManager = new PermissionManager(app.getPath("userData"));
+const tabManager = new TabManager(appState, themeColorCache, permissionManager);
 const windowManager = new WindowManager(appState, tabManager);
 const trayManager = new TrayManager(appState, windowManager);
-const ipcHandlers = new IPCHandlers(appState, tabManager, windowManager, bookmarkManager, faviconCache, themeColorCache, languageManager);
+const ipcHandlers = new IPCHandlers(appState, tabManager, windowManager, bookmarkManager, faviconCache, themeColorCache, languageManager, permissionManager);
 const appLifecycle = new AppLifecycle(appState, windowManager, trayManager);
 
 // Initialize Widevine
