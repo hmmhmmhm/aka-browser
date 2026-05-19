@@ -2,13 +2,18 @@
  * Main entry point for the Electron application
  */
 
-import { app } from "electron";
+import { app, session } from "electron";
 import { AppState } from "./types";
 import { ThemeColorCache } from "./theme-cache";
 import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
 import { BookmarkManager } from "./bookmark-manager";
 import { FaviconCache } from "./favicon-cache";
+import { BrowsingDataManager } from "./browsing-data-manager";
+import { DownloadManager } from "./download-manager";
+import { HistoryManager } from "./history-manager";
+import { PermissionManager } from "./permission-manager";
+import { SessionManager } from "./session-manager";
 import { IPCHandlers } from "./ipc-handlers";
 import { TrayManager } from "./tray-manager";
 import { AppLifecycle } from "./app-lifecycle";
@@ -36,10 +41,19 @@ const appState: AppState = {
 const themeColorCache = new ThemeColorCache();
 const bookmarkManager = new BookmarkManager();
 const faviconCache = new FaviconCache();
-const tabManager = new TabManager(appState, themeColorCache);
-const windowManager = new WindowManager(appState, tabManager);
+const permissionManager = new PermissionManager(app.getPath("userData"));
+const historyManager = new HistoryManager(app.getPath("userData"));
+const sessionManager = new SessionManager(app.getPath("userData"));
+const downloadManager = new DownloadManager();
+const tabManager = new TabManager(
+  appState,
+  themeColorCache,
+  permissionManager,
+  historyManager,
+  sessionManager
+);
+const windowManager = new WindowManager(appState, tabManager, sessionManager);
 const trayManager = new TrayManager(appState, windowManager);
-const ipcHandlers = new IPCHandlers(appState, tabManager, windowManager, bookmarkManager, faviconCache, themeColorCache, languageManager);
 const appLifecycle = new AppLifecycle(appState, windowManager, trayManager);
 
 // Initialize Widevine
@@ -52,6 +66,36 @@ app.on("ready", async () => {
 
 // Setup application when ready
 app.whenReady().then(async () => {
+  const webSession = session.fromPartition("persist:main");
+  const browsingDataManager = new BrowsingDataManager({
+    electronSession: webSession,
+    faviconCache,
+    historyManager,
+    permissionManager,
+    sessionManager,
+    themeColorCache,
+  });
+  downloadManager.registerSession(webSession, () => {
+    if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
+      appState.mainWindow.webContents.send(
+        "downloads-updated",
+        downloadManager.list()
+      );
+    }
+  });
+  const ipcHandlers = new IPCHandlers(
+    appState,
+    tabManager,
+    windowManager,
+    bookmarkManager,
+    faviconCache,
+    themeColorCache,
+    languageManager,
+    permissionManager,
+    browsingDataManager,
+    downloadManager
+  );
+
   await appLifecycle.setupApp();
   ipcHandlers.registerHandlers();
 });

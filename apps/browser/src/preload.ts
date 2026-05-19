@@ -216,4 +216,44 @@ contextBridge.exposeInMainWorld("electronAPI", {
     clearCache: () => ipcRenderer.invoke("favicon-clear-cache"),
     getCacheSize: () => ipcRenderer.invoke("favicon-get-cache-size"),
   },
+
+  // Site permission APIs
+  permissions: {
+    list: () => ipcRenderer.invoke("permissions-list"),
+    set: (origin: string, permission: string, decision: string) =>
+      ipcRenderer.invoke("permissions-set", origin, permission, decision),
+    clear: (origin?: string) => ipcRenderer.invoke("permissions-clear", origin),
+  },
+
+  browsingData: {
+    clearHistory: () => ipcRenderer.invoke("browsing-data-clear-history"),
+    clearCookies: () => ipcRenderer.invoke("browsing-data-clear-cookies"),
+    clearCache: () => ipcRenderer.invoke("browsing-data-clear-cache"),
+    clearSiteData: () => ipcRenderer.invoke("browsing-data-clear-site-data"),
+    clearAll: () => ipcRenderer.invoke("browsing-data-clear-all"),
+  },
+
+  downloads: {
+    list: () => ipcRenderer.invoke("downloads-list"),
+    clearCompleted: () => ipcRenderer.invoke("downloads-clear-completed"),
+    openInFolder: (id: string) => ipcRenderer.invoke("downloads-open-in-folder", id),
+    onUpdated: (callback: (items: any[]) => void) => {
+      const listener = (_event: any, items: any[]) => callback(items);
+      ipcRenderer.on("downloads-updated", listener);
+      return () => ipcRenderer.removeListener("downloads-updated", listener);
+    },
+  },
+
+  pageTools: {
+    find: (text: string, forward?: boolean) =>
+      ipcRenderer.invoke("page-find", text, forward),
+    findNext: (text: string) => ipcRenderer.invoke("page-find-next", text),
+    findPrevious: (text: string) =>
+      ipcRenderer.invoke("page-find-previous", text),
+    stopFind: () => ipcRenderer.invoke("page-stop-find"),
+    zoomIn: () => ipcRenderer.invoke("page-zoom-in"),
+    zoomOut: () => ipcRenderer.invoke("page-zoom-out"),
+    zoomReset: () => ipcRenderer.invoke("page-zoom-reset"),
+    print: () => ipcRenderer.invoke("page-print"),
+  },
 });

@@ -109,7 +109,8 @@ export function setupNavigationHandlers(
   tabId: string,
   state: AppState,
   themeColorCache: ThemeColorCache,
-  captureTabPreview: (tabId: string) => Promise<void>
+  captureTabPreview: (tabId: string) => Promise<void>,
+  onSuccessfulNavigation?: (url: string, title: string) => void
 ): void {
   // ── Loading start / stop ──────────────────────────────────────────────────
 
@@ -144,6 +145,9 @@ export function setupNavigationHandlers(
         activeTabId: state.activeTabId,
       });
     }
+    if (displayUrl !== "/") {
+      onSuccessfulNavigation?.(displayUrl, contents.getTitle() || displayUrl);
+    }
   });
 
   contents.on("did-navigate-in-page", (_event: any, url: string) => {
@@ -158,6 +162,9 @@ export function setupNavigationHandlers(
         tabs: tabsSnapshot(state),
         activeTabId: state.activeTabId,
       });
+    }
+    if (displayUrl !== "/") {
+      onSuccessfulNavigation?.(displayUrl, contents.getTitle() || displayUrl);
     }
   });
 

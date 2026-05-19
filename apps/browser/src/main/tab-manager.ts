@@ -12,12 +12,16 @@ import { WebContentsView, Menu } from "electron";
 import path from "path";
 import fs from "fs";
 import { Tab, AppState } from "./types";
+import { HistoryManager } from "./history-manager";
 import {
   isValidUrl,
   sanitizeUrl,
   getUserAgentForUrl,
   logSecurityEvent,
 } from "./security";
+import { classifyNavigationTarget } from "./security-policy";
+import { PermissionManager } from "./permission-manager";
+import { SessionManager } from "./session-manager";
 import { ThemeColorCache } from "./theme-cache";
 import { loadBlankPage } from "./tabs/tab-page-loader";
 import {
@@ -25,14 +29,28 @@ import {
   exitFullscreen as doExitFullscreen,
 } from "./tabs/tab-fullscreen";
 import { setupNavigationHandlers } from "./tabs/tab-navigation";
+import { shouldGrantPermissionRequest } from "./tabs/tab-permissions";
+import { confirmAndOpenExternalProtocol } from "./tabs/tab-external-protocol";
 
 export class TabManager {
   private state: AppState;
   private themeColorCache: ThemeColorCache;
+  private permissionManager: PermissionManager;
+  private historyManager: HistoryManager;
+  private sessionManager: SessionManager;
 
-  constructor(state: AppState, themeColorCache: ThemeColorCache) {
+  constructor(
+    state: AppState,
+    themeColorCache: ThemeColorCache,
+    permissionManager: PermissionManager,
+    historyManager: HistoryManager,
+    sessionManager: SessionManager
+  ) {
     this.state = state;
     this.themeColorCache = themeColorCache;
+    this.permissionManager = permissionManager;
+    this.historyManager = historyManager;
+    this.sessionManager = sessionManager;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -65,16 +83,15 @@ export class TabManager {
 
     // Enable Widevine CDM for this webContents
     view.webContents.session.setPermissionRequestHandler(
-      (
-        _webContents: any,
-        permission: string,
-        callback: (result: boolean) => void
-      ) => {
-        if (permission === "media" || permission === "fullscreen") {
-          callback(true);
-        } else {
-          callback(false);
-        }
+      (webContents: any, permission: string, callback: (result: boolean) => void, details?: any) => {
+        callback(
+          shouldGrantPermissionRequest(
+            this.permissionManager,
+            webContents,
+            permission,
+            details
+          )
+        );
       }
     );
 
@@ -90,6 +107,7 @@ export class TabManager {
 
     this.state.tabs.push(tab);
     this.setupWebContentsViewHandlers(view, tabId);
+    this.saveSession();
 
     // Load URL or blank page
     if (!url || url.trim() === "") {
@@ -150,6 +168,7 @@ export class TabManager {
         preview: t.preview,
       })),
     });
+    this.saveSession();
   }
 
   /** Close a tab and switch to an adjacent one (or create a new tab if last). */
@@ -187,6 +206,7 @@ export class TabManager {
         activeTabId: this.state.activeTabId,
       });
     }
+    this.saveSession();
   }
 
   /** Close every open tab and open a single new blank tab. */
@@ -202,6 +222,7 @@ export class TabManager {
     this.state.tabs.length = 0;
     const newTab = this.createTab();
     this.switchToTab(newTab.id);
+    this.saveSession();
   }
 
   /** Exit fullscreen for a tab (ESC-key handler entry point). */
@@ -292,6 +313,19 @@ export class TabManager {
     }
   }
 
+  private saveSession(): void {
+    this.sessionManager.save({
+      activeTabId: this.state.activeTabId,
+      orientation: this.state.isLandscape ? "landscape" : "portrait",
+      savedAt: Date.now(),
+      tabs: this.state.tabs.map((tab) => ({
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+      })),
+    });
+  }
+
   /**
    * Wire up all WebContentsView event listeners: context-menu, security
    * checks, window-open interception, fullscreen, and navigation.
@@ -345,11 +379,16 @@ export class TabManager {
 
     // Block invalid navigation URLs
     contents.on("will-navigate", (_event: any, navigationUrl: string) => {
-      if (!isValidUrl(navigationUrl)) {
+      const decision = classifyNavigationTarget(navigationUrl);
+      if (decision.kind === "external") {
         _event.preventDefault();
-        logSecurityEvent("Navigation blocked to invalid URL", {
-          url: navigationUrl,
-        });
+        confirmAndOpenExternalProtocol(this.state, decision.url, contents.getURL());
+      } else if (decision.kind !== "web" || !isValidUrl(decision.url)) {
+        _event.preventDefault();
+        logSecurityEvent(
+          decision.kind === "blocked" ? decision.reason : "Invalid navigation",
+          { url: navigationUrl }
+        );
         if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
           this.state.mainWindow.webContents.send(
             "navigation-blocked",
@@ -357,17 +396,25 @@ export class TabManager {
           );
         }
       } else {
-        contents.setUserAgent(getUserAgentForUrl(navigationUrl));
+        contents.setUserAgent(getUserAgentForUrl(decision.url));
       }
     });
 
     // Intercept new-window requests and open them as tabs instead
     contents.setWindowOpenHandler(({ url }: { url: string }) => {
-      if (!isValidUrl(url)) {
-        logSecurityEvent("Blocked new window with invalid URL", { url });
+      const decision = classifyNavigationTarget(url);
+      if (decision.kind === "external") {
+        confirmAndOpenExternalProtocol(this.state, decision.url, contents.getURL());
         return { action: "deny" };
       }
-      const newTab = this.createTab(url);
+      if (decision.kind !== "web" || !isValidUrl(decision.url)) {
+        logSecurityEvent(
+          decision.kind === "blocked" ? decision.reason : "Invalid new window",
+          { url }
+        );
+        return { action: "deny" };
+      }
+      const newTab = this.createTab(decision.url);
       this.switchToTab(newTab.id);
       return { action: "deny" };
     });
@@ -383,7 +430,12 @@ export class TabManager {
       tabId,
       this.state,
       this.themeColorCache,
-      (id) => this.captureTabPreview(id)
+      (id) => this.captureTabPreview(id),
+      (url, title) => {
+        this.historyManager.recordVisit(url, title);
+        this.saveSession();
+      }
     );
   }
+
 }

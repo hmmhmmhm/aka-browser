@@ -5,6 +5,7 @@ import PhoneFrame from "./components/phone-frame";
 import TabOverview from "./components/tab-overview";
 import Settings from "./components/settings";
 import MenuOverlay from "./components/menu-overlay";
+import { FindInPage } from "./components/find-in-page";
 import { useBrowserPageState } from "./hooks/use-browser-page-state";
 import { getWebContentsBounds, normalizeNavigationUrl } from "./lib/app-utils";
 
@@ -17,6 +18,7 @@ function App() {
   const [showTabOverview, setShowTabOverview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showFind, setShowFind] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const webContainerRef = useRef<HTMLDivElement>(null);
   const pageState = useBrowserPageState(orientation);
@@ -157,14 +159,30 @@ function App() {
     window.electronAPI?.webContents.setVisible(true);
   };
 
+  const handleCloseMenu = () => {
+    setShowMenu(false);
+    syncWebContentsBounds();
+    window.electronAPI?.webContents.setVisible(true);
+  };
+
+  const handleOpenSettingsFromMenu = () => {
+    setShowSettings(true);
+    window.electronAPI?.webContents.setVisible(false);
+  };
+
   const handleShowMenu = () => {
     if (showSettings) {
       handleCloseSettings();
       return;
     }
 
+    if (showMenu) {
+      handleCloseMenu();
+      return;
+    }
+
     window.electronAPI?.webContents.setVisible(false);
-    setShowSettings(true);
+    setShowMenu(true);
   };
 
   return (
@@ -209,9 +227,13 @@ function App() {
           theme={systemTheme}
           currentUrl={pageState.currentUrl}
           currentTitle={pageState.pageTitle}
-          onClose={() => setShowMenu(false)}
-          onOpenSettings={() => setShowSettings(true)}
+          onClose={handleCloseMenu}
+          onOpenFind={() => setShowFind(true)}
+          onOpenSettings={handleOpenSettingsFromMenu}
         />
+      )}
+      {showFind && (
+        <FindInPage theme={systemTheme} onClose={() => setShowFind(false)} />
       )}
     </div>
   );

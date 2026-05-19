@@ -44,6 +44,40 @@ interface LanguageState {
   systemLanguage: EffectiveLanguage;
 }
 
+type SitePermission =
+  | "media"
+  | "clipboard-read"
+  | "clipboard-write"
+  | "fullscreen";
+type PermissionDecision = "allow" | "block" | "prompt";
+
+interface SitePermissionEntry {
+  origin: string;
+  permission: SitePermission;
+  decision: Exclude<PermissionDecision, "prompt">;
+  updatedAt: number;
+}
+
+interface ClearResult {
+  error?: string;
+  ok: boolean;
+  target: string;
+}
+
+type DownloadState = "active" | "cancelled" | "completed" | "interrupted";
+
+interface DownloadItem {
+  endedAt?: number;
+  filename: string;
+  id: string;
+  receivedBytes: number;
+  savePath: string;
+  startedAt: number;
+  state: DownloadState;
+  totalBytes: number;
+  url: string;
+}
+
 export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
@@ -145,6 +179,43 @@ export interface ElectronAPI {
     isCached: (url: string) => Promise<boolean>;
     clearCache: () => Promise<void>;
     getCacheSize: () => Promise<number>;
+  };
+
+  // Site permission APIs
+  permissions: {
+    list: () => Promise<SitePermissionEntry[]>;
+    set: (
+      origin: string,
+      permission: SitePermission,
+      decision: PermissionDecision
+    ) => Promise<SitePermissionEntry[]>;
+    clear: (origin?: string) => Promise<SitePermissionEntry[]>;
+  };
+
+  browsingData: {
+    clearHistory: () => Promise<ClearResult>;
+    clearCookies: () => Promise<ClearResult>;
+    clearCache: () => Promise<ClearResult>;
+    clearSiteData: () => Promise<ClearResult>;
+    clearAll: () => Promise<ClearResult[]>;
+  };
+
+  downloads: {
+    list: () => Promise<DownloadItem[]>;
+    clearCompleted: () => Promise<DownloadItem[]>;
+    openInFolder: (id: string) => Promise<boolean>;
+    onUpdated: (callback: (items: DownloadItem[]) => void) => () => void;
+  };
+
+  pageTools: {
+    find: (text: string, forward?: boolean) => Promise<void>;
+    findNext: (text: string) => Promise<void>;
+    findPrevious: (text: string) => Promise<void>;
+    stopFind: () => Promise<void>;
+    zoomIn: () => Promise<number>;
+    zoomOut: () => Promise<number>;
+    zoomReset: () => Promise<number>;
+    print: () => Promise<void>;
   };
 }
 

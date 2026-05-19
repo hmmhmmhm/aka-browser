@@ -4,16 +4,23 @@
 
 import { ipcMain, app, nativeTheme } from "electron";
 import { AppState } from "./types";
+import { BrowsingDataManager } from "./browsing-data-manager";
+import { DownloadManager } from "./download-manager";
 import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
 import { BookmarkManager } from "./bookmark-manager";
 import { FaviconCache } from "./favicon-cache";
 import { isValidUrl, sanitizeUrl, getUserAgentForUrl, logSecurityEvent } from "./security";
 import { ThemeColorCache } from "./theme-cache";
+import { PermissionManager } from "./permission-manager";
 import {
   registerBookmarkHandlers,
   registerFaviconHandlers,
 } from "./ipc/bookmark-favicon-handlers";
+import { registerPermissionHandlers } from "./ipc/permission-handlers";
+import { registerBrowsingDataHandlers } from "./ipc/browsing-data-handlers";
+import { registerDownloadHandlers } from "./ipc/download-handlers";
+import { registerPageToolHandlers } from "./ipc/page-tool-handlers";
 import { LanguageManager } from "./language-manager";
 
 export class IPCHandlers {
@@ -24,6 +31,9 @@ export class IPCHandlers {
   private faviconCache: FaviconCache;
   private themeColorCache: ThemeColorCache;
   private languageManager: LanguageManager;
+  private permissionManager: PermissionManager;
+  private browsingDataManager: BrowsingDataManager;
+  private downloadManager: DownloadManager;
 
   constructor(
     state: AppState,
@@ -32,7 +42,10 @@ export class IPCHandlers {
     bookmarkManager: BookmarkManager,
     faviconCache: FaviconCache,
     themeColorCache: ThemeColorCache,
-    languageManager: LanguageManager
+    languageManager: LanguageManager,
+    permissionManager: PermissionManager,
+    browsingDataManager: BrowsingDataManager,
+    downloadManager: DownloadManager
   ) {
     this.state = state;
     this.tabManager = tabManager;
@@ -41,6 +54,9 @@ export class IPCHandlers {
     this.faviconCache = faviconCache;
     this.themeColorCache = themeColorCache;
     this.languageManager = languageManager;
+    this.permissionManager = permissionManager;
+    this.browsingDataManager = browsingDataManager;
+    this.downloadManager = downloadManager;
   }
 
   /**
@@ -53,6 +69,10 @@ export class IPCHandlers {
     this.registerThemeHandlers();
     this.registerOrientationHandlers();
     this.registerAppHandlers();
+    registerPermissionHandlers(this.state, this.permissionManager);
+    registerBrowsingDataHandlers(this.state, this.browsingDataManager);
+    registerDownloadHandlers(this.state, this.downloadManager);
+    registerPageToolHandlers(this.state);
     registerBookmarkHandlers(this.state, this.bookmarkManager);
     registerFaviconHandlers(this.faviconCache);
   }

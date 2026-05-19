@@ -37,8 +37,6 @@ export class AppLifecycle {
 
     // Enable Widevine features and DRM
     app.commandLine.appendSwitch("enable-features", "PlatformEncryptedDolbyVision");
-    app.commandLine.appendSwitch("ignore-certificate-errors");
-    app.commandLine.appendSwitch("allow-running-insecure-content");
   }
 
   /**

@@ -8,6 +8,10 @@ echo "== TypeScript, lint, and build =="
 pnpm exec turbo run check-types lint build --force
 
 echo
+echo "== Unit tests =="
+pnpm test
+
+echo
 echo "== Dependency audit =="
 pnpm audit --prod=false
 

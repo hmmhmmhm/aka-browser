@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { Info, Star } from "lucide-react";
+import { Database, Download, Info, Shield, Star } from "lucide-react";
 import appIcon from "../../../assets/icon.png";
 import { AboutView } from "./settings/about-view";
 import { BookmarkDialog } from "./settings/bookmark-dialog";
 import { BookmarksView } from "./settings/bookmarks-view";
+import { BrowsingDataView } from "./settings/browsing-data-view";
+import { DownloadsView } from "./settings/downloads-view";
 import { LanguageView } from "./settings/language-view";
 import { MainView } from "./settings/main-view";
+import { SitePermissionsView } from "./settings/site-permissions-view";
 import { Bookmark, SettingsSection, SettingsView } from "./settings/types";
 import { useBookmarks } from "./settings/use-bookmarks";
 import { useI18n } from "../i18n/i18n-context";
@@ -56,6 +59,27 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
           icon: <Info size={20} />,
           hasDetail: true,
           onClick: () => setCurrentView("language"),
+        },
+        {
+          id: "browsing-data",
+          label: t("browsingData"),
+          icon: <Database size={20} />,
+          hasDetail: true,
+          onClick: () => setCurrentView("browsing-data"),
+        },
+        {
+          id: "site-permissions",
+          label: t("sitePermissions"),
+          icon: <Shield size={20} />,
+          hasDetail: true,
+          onClick: () => setCurrentView("site-permissions"),
+        },
+        {
+          id: "downloads",
+          label: t("downloads"),
+          icon: <Download size={20} />,
+          hasDetail: true,
+          onClick: () => setCurrentView("downloads"),
         },
         {
           id: "about",
@@ -150,6 +174,21 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
       )}
       {currentView === "language" && (
         <LanguageView isDark={isDark} onBack={() => setCurrentView("main")} />
+      )}
+      {currentView === "browsing-data" && (
+        <BrowsingDataView
+          isDark={isDark}
+          onBack={() => setCurrentView("main")}
+        />
+      )}
+      {currentView === "downloads" && (
+        <DownloadsView isDark={isDark} onBack={() => setCurrentView("main")} />
+      )}
+      {currentView === "site-permissions" && (
+        <SitePermissionsView
+          isDark={isDark}
+          onBack={() => setCurrentView("main")}
+        />
       )}
 
       {showBookmarkDialog && (
