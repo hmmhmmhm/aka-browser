@@ -89,7 +89,7 @@ function MenuOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-end pt-16 pr-6"
+      className="fixed inset-0 z-[10000] flex items-start justify-end pt-16 pr-6"
       onClick={onClose}
     >
       <div

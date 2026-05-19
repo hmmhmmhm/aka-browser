@@ -27,7 +27,7 @@ export function FindInPage({ onClose, theme }: FindInPageProps) {
   };
 
   return (
-    <div className="fixed left-1/2 top-16 z-[60] -translate-x-1/2 [-webkit-app-region:no-drag]">
+    <div className="fixed left-1/2 top-16 z-[10001] -translate-x-1/2 [-webkit-app-region:no-drag]">
       <div
         className={`flex items-center gap-1 rounded-xl px-2 py-2 shadow-2xl ${
           isDark ? "bg-zinc-800 text-white" : "bg-white text-zinc-900"

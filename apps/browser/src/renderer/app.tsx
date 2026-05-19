@@ -159,14 +159,30 @@ function App() {
     window.electronAPI?.webContents.setVisible(true);
   };
 
+  const handleCloseMenu = () => {
+    setShowMenu(false);
+    syncWebContentsBounds();
+    window.electronAPI?.webContents.setVisible(true);
+  };
+
+  const handleOpenSettingsFromMenu = () => {
+    setShowSettings(true);
+    window.electronAPI?.webContents.setVisible(false);
+  };
+
   const handleShowMenu = () => {
     if (showSettings) {
       handleCloseSettings();
       return;
     }
 
+    if (showMenu) {
+      handleCloseMenu();
+      return;
+    }
+
     window.electronAPI?.webContents.setVisible(false);
-    setShowSettings(true);
+    setShowMenu(true);
   };
 
   return (
@@ -211,9 +227,9 @@ function App() {
           theme={systemTheme}
           currentUrl={pageState.currentUrl}
           currentTitle={pageState.pageTitle}
-          onClose={() => setShowMenu(false)}
+          onClose={handleCloseMenu}
           onOpenFind={() => setShowFind(true)}
-          onOpenSettings={() => setShowSettings(true)}
+          onOpenSettings={handleOpenSettingsFromMenu}
         />
       )}
       {showFind && (
