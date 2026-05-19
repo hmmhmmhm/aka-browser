@@ -9,7 +9,9 @@ import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
 import { BookmarkManager } from "./bookmark-manager";
 import { FaviconCache } from "./favicon-cache";
+import { HistoryManager } from "./history-manager";
 import { PermissionManager } from "./permission-manager";
+import { SessionManager } from "./session-manager";
 import { IPCHandlers } from "./ipc-handlers";
 import { TrayManager } from "./tray-manager";
 import { AppLifecycle } from "./app-lifecycle";
@@ -38,8 +40,16 @@ const themeColorCache = new ThemeColorCache();
 const bookmarkManager = new BookmarkManager();
 const faviconCache = new FaviconCache();
 const permissionManager = new PermissionManager(app.getPath("userData"));
-const tabManager = new TabManager(appState, themeColorCache, permissionManager);
-const windowManager = new WindowManager(appState, tabManager);
+const historyManager = new HistoryManager(app.getPath("userData"));
+const sessionManager = new SessionManager(app.getPath("userData"));
+const tabManager = new TabManager(
+  appState,
+  themeColorCache,
+  permissionManager,
+  historyManager,
+  sessionManager
+);
+const windowManager = new WindowManager(appState, tabManager, sessionManager);
 const trayManager = new TrayManager(appState, windowManager);
 const ipcHandlers = new IPCHandlers(appState, tabManager, windowManager, bookmarkManager, faviconCache, themeColorCache, languageManager, permissionManager);
 const appLifecycle = new AppLifecycle(appState, windowManager, trayManager);

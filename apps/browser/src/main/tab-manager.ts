@@ -8,10 +8,11 @@
  *  - Navigation handlers → tabs/tab-navigation.ts
  */
 
-import { WebContentsView, Menu, dialog, shell } from "electron";
+import { WebContentsView, Menu } from "electron";
 import path from "path";
 import fs from "fs";
 import { Tab, AppState } from "./types";
+import { HistoryManager } from "./history-manager";
 import {
   isValidUrl,
   sanitizeUrl,
@@ -20,6 +21,7 @@ import {
 } from "./security";
 import { classifyNavigationTarget } from "./security-policy";
 import { PermissionManager } from "./permission-manager";
+import { SessionManager } from "./session-manager";
 import { ThemeColorCache } from "./theme-cache";
 import { loadBlankPage } from "./tabs/tab-page-loader";
 import {
@@ -28,25 +30,27 @@ import {
 } from "./tabs/tab-fullscreen";
 import { setupNavigationHandlers } from "./tabs/tab-navigation";
 import { shouldGrantPermissionRequest } from "./tabs/tab-permissions";
-import {
-  buildExternalProtocolPrompt,
-  getExternalProtocol,
-  isConfirmableExternalProtocol,
-} from "./external-protocol";
+import { confirmAndOpenExternalProtocol } from "./tabs/tab-external-protocol";
 
 export class TabManager {
   private state: AppState;
   private themeColorCache: ThemeColorCache;
   private permissionManager: PermissionManager;
+  private historyManager: HistoryManager;
+  private sessionManager: SessionManager;
 
   constructor(
     state: AppState,
     themeColorCache: ThemeColorCache,
-    permissionManager: PermissionManager
+    permissionManager: PermissionManager,
+    historyManager: HistoryManager,
+    sessionManager: SessionManager
   ) {
     this.state = state;
     this.themeColorCache = themeColorCache;
     this.permissionManager = permissionManager;
+    this.historyManager = historyManager;
+    this.sessionManager = sessionManager;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -103,6 +107,7 @@ export class TabManager {
 
     this.state.tabs.push(tab);
     this.setupWebContentsViewHandlers(view, tabId);
+    this.saveSession();
 
     // Load URL or blank page
     if (!url || url.trim() === "") {
@@ -163,6 +168,7 @@ export class TabManager {
         preview: t.preview,
       })),
     });
+    this.saveSession();
   }
 
   /** Close a tab and switch to an adjacent one (or create a new tab if last). */
@@ -200,6 +206,7 @@ export class TabManager {
         activeTabId: this.state.activeTabId,
       });
     }
+    this.saveSession();
   }
 
   /** Close every open tab and open a single new blank tab. */
@@ -215,6 +222,7 @@ export class TabManager {
     this.state.tabs.length = 0;
     const newTab = this.createTab();
     this.switchToTab(newTab.id);
+    this.saveSession();
   }
 
   /** Exit fullscreen for a tab (ESC-key handler entry point). */
@@ -305,6 +313,19 @@ export class TabManager {
     }
   }
 
+  private saveSession(): void {
+    this.sessionManager.save({
+      activeTabId: this.state.activeTabId,
+      orientation: this.state.isLandscape ? "landscape" : "portrait",
+      savedAt: Date.now(),
+      tabs: this.state.tabs.map((tab) => ({
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+      })),
+    });
+  }
+
   /**
    * Wire up all WebContentsView event listeners: context-menu, security
    * checks, window-open interception, fullscreen, and navigation.
@@ -361,7 +382,7 @@ export class TabManager {
       const decision = classifyNavigationTarget(navigationUrl);
       if (decision.kind === "external") {
         _event.preventDefault();
-        this.confirmAndOpenExternal(decision.url, contents.getURL());
+        confirmAndOpenExternalProtocol(this.state, decision.url, contents.getURL());
       } else if (decision.kind !== "web" || !isValidUrl(decision.url)) {
         _event.preventDefault();
         logSecurityEvent(
@@ -383,7 +404,7 @@ export class TabManager {
     contents.setWindowOpenHandler(({ url }: { url: string }) => {
       const decision = classifyNavigationTarget(url);
       if (decision.kind === "external") {
-        this.confirmAndOpenExternal(decision.url, contents.getURL());
+        confirmAndOpenExternalProtocol(this.state, decision.url, contents.getURL());
         return { action: "deny" };
       }
       if (decision.kind !== "web" || !isValidUrl(decision.url)) {
@@ -409,32 +430,12 @@ export class TabManager {
       tabId,
       this.state,
       this.themeColorCache,
-      (id) => this.captureTabPreview(id)
+      (id) => this.captureTabPreview(id),
+      (url, title) => {
+        this.historyManager.recordVisit(url, title);
+        this.saveSession();
+      }
     );
   }
 
-  private confirmAndOpenExternal(targetUrl: string, sourceUrl: string): void {
-    const protocol = getExternalProtocol(targetUrl);
-    if (!protocol || !isConfirmableExternalProtocol(protocol)) {
-      logSecurityEvent("Blocked unsupported external protocol", { targetUrl });
-      return;
-    }
-
-    const prompt = buildExternalProtocolPrompt(targetUrl, sourceUrl);
-    const choice = dialog.showMessageBoxSync(this.state.mainWindow!, {
-      buttons: ["Open", "Cancel"],
-      cancelId: 1,
-      defaultId: 1,
-      detail: prompt.detail,
-      message: prompt.message,
-      noLink: true,
-      type: "question",
-    });
-
-    if (choice === 0) {
-      shell.openExternal(targetUrl).catch((error) => {
-        console.error("[TabManager] Failed to open external URL:", error);
-      });
-    }
-  }
 }

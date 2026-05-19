@@ -13,16 +13,22 @@ import {
   STATUS_BAR_HEIGHT,
   STATUS_BAR_WIDTH,
 } from "./constants";
-import { logSecurityEvent } from "./security";
+import { BrowserSessionSnapshot, SessionManager } from "./session-manager";
 import { TabManager } from "./tab-manager";
 
 export class WindowManager {
   private state: AppState;
   private tabManager: TabManager;
+  private sessionManager: SessionManager;
 
-  constructor(state: AppState, tabManager: TabManager) {
+  constructor(
+    state: AppState,
+    tabManager: TabManager,
+    sessionManager: SessionManager
+  ) {
     this.state = state;
     this.tabManager = tabManager;
+    this.sessionManager = sessionManager;
   }
 
   /**
@@ -167,6 +173,11 @@ export class WindowManager {
    * Create the main browser window
    */
   createWindow(): void {
+    const restoredSession = this.sessionManager.load();
+    if (restoredSession) {
+      this.state.isLandscape = restoredSession.orientation === "landscape";
+    }
+
     const dimensions = this.getWindowDimensions();
     
     this.state.mainWindow = new BrowserWindow({
@@ -217,9 +228,7 @@ export class WindowManager {
     // Register local keyboard shortcuts (only work when window is focused)
     this.registerLocalShortcuts();
 
-    // Create initial blank tab with start page
-    const initialTab = this.tabManager.createTab("");
-    this.tabManager.switchToTab(initialTab.id);
+    this.restoreTabsOrCreateBlank(restoredSession);
 
     // Set security headers
     this.setupSecurityHeaders();
@@ -272,6 +281,27 @@ export class WindowManager {
         height: newHeight,
       });
     });
+  }
+
+  private restoreTabsOrCreateBlank(
+    restoredSession: BrowserSessionSnapshot | null
+  ): void {
+    const restorableTabs = restoredSession?.tabs ?? [];
+    if (restorableTabs.length === 0) {
+      const initialTab = this.tabManager.createTab("");
+      this.tabManager.switchToTab(initialTab.id);
+      return;
+    }
+
+    let activeTabId: string | null = null;
+    for (const tab of restorableTabs) {
+      const created = this.tabManager.createTab(tab.url);
+      if (tab.id === restoredSession?.activeTabId) {
+        activeTabId = created.id;
+      }
+    }
+
+    this.tabManager.switchToTab(activeTabId ?? this.state.tabs[0].id);
   }
 
   /**
