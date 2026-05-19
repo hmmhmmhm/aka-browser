@@ -116,6 +116,8 @@ export function useBrowserPageState(orientation: "portrait" | "landscape") {
 
     const cleanupTabChanged = window.electronAPI?.tabs.onTabChanged((data) => {
       setTabCount(data.tabs.length);
+      updatePageInfo();
+      startThemeColorMonitoring();
     });
     const cleanupTabsUpdated = window.electronAPI?.tabs.onTabsUpdated(
       (data: TabListData) => {
