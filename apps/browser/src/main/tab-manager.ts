@@ -8,7 +8,7 @@
  *  - Navigation handlers → tabs/tab-navigation.ts
  */
 
-import { WebContentsView, Menu } from "electron";
+import { WebContentsView, Menu, dialog, shell } from "electron";
 import path from "path";
 import fs from "fs";
 import { Tab, AppState } from "./types";
@@ -19,11 +19,7 @@ import {
   logSecurityEvent,
 } from "./security";
 import { classifyNavigationTarget } from "./security-policy";
-import {
-  PermissionManager,
-  SitePermission,
-  normalizeOrigin,
-} from "./permission-manager";
+import { PermissionManager } from "./permission-manager";
 import { ThemeColorCache } from "./theme-cache";
 import { loadBlankPage } from "./tabs/tab-page-loader";
 import {
@@ -31,6 +27,12 @@ import {
   exitFullscreen as doExitFullscreen,
 } from "./tabs/tab-fullscreen";
 import { setupNavigationHandlers } from "./tabs/tab-navigation";
+import { shouldGrantPermissionRequest } from "./tabs/tab-permissions";
+import {
+  buildExternalProtocolPrompt,
+  getExternalProtocol,
+  isConfirmableExternalProtocol,
+} from "./external-protocol";
 
 export class TabManager {
   private state: AppState;
@@ -78,7 +80,14 @@ export class TabManager {
     // Enable Widevine CDM for this webContents
     view.webContents.session.setPermissionRequestHandler(
       (webContents: any, permission: string, callback: (result: boolean) => void, details?: any) => {
-        callback(this.shouldGrantPermission(webContents, permission, details));
+        callback(
+          shouldGrantPermissionRequest(
+            this.permissionManager,
+            webContents,
+            permission,
+            details
+          )
+        );
       }
     );
 
@@ -115,31 +124,6 @@ export class TabManager {
     }
 
     return tab;
-  }
-
-  private shouldGrantPermission(
-    webContents: Electron.WebContents,
-    permission: string,
-    details?: { requestingUrl?: string; embeddingOrigin?: string }
-  ): boolean {
-    const sitePermission = toSitePermission(permission);
-    if (!sitePermission) {
-      logSecurityEvent(`Permission denied: ${permission}`);
-      return false;
-    }
-
-    const origin = normalizeOrigin(
-      details?.requestingUrl || details?.embeddingOrigin || webContents.getURL()
-    );
-    if (!origin) {
-      return sitePermission === "media" || sitePermission === "fullscreen";
-    }
-
-    const decision = this.permissionManager.getDecision(origin, sitePermission);
-    if (decision === "allow") return true;
-    if (decision === "block") return false;
-
-    return sitePermission === "media" || sitePermission === "fullscreen";
   }
 
   /** Switch the active tab, updating the window's child-view stack. */
@@ -375,12 +359,13 @@ export class TabManager {
     // Block invalid navigation URLs
     contents.on("will-navigate", (_event: any, navigationUrl: string) => {
       const decision = classifyNavigationTarget(navigationUrl);
-      if (decision.kind !== "web" || !isValidUrl(decision.url)) {
+      if (decision.kind === "external") {
+        _event.preventDefault();
+        this.confirmAndOpenExternal(decision.url, contents.getURL());
+      } else if (decision.kind !== "web" || !isValidUrl(decision.url)) {
         _event.preventDefault();
         logSecurityEvent(
-          decision.kind === "blocked"
-            ? decision.reason
-            : "External protocol requires confirmation",
+          decision.kind === "blocked" ? decision.reason : "Invalid navigation",
           { url: navigationUrl }
         );
         if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
@@ -397,11 +382,13 @@ export class TabManager {
     // Intercept new-window requests and open them as tabs instead
     contents.setWindowOpenHandler(({ url }: { url: string }) => {
       const decision = classifyNavigationTarget(url);
+      if (decision.kind === "external") {
+        this.confirmAndOpenExternal(decision.url, contents.getURL());
+        return { action: "deny" };
+      }
       if (decision.kind !== "web" || !isValidUrl(decision.url)) {
         logSecurityEvent(
-          decision.kind === "blocked"
-            ? decision.reason
-            : "External protocol requires confirmation",
+          decision.kind === "blocked" ? decision.reason : "Invalid new window",
           { url }
         );
         return { action: "deny" };
@@ -425,17 +412,29 @@ export class TabManager {
       (id) => this.captureTabPreview(id)
     );
   }
-}
 
-function toSitePermission(permission: string): SitePermission | null {
-  if (permission === "clipboard-sanitized-write") return "clipboard-write";
-  if (
-    permission === "media" ||
-    permission === "clipboard-read" ||
-    permission === "clipboard-write" ||
-    permission === "fullscreen"
-  ) {
-    return permission;
+  private confirmAndOpenExternal(targetUrl: string, sourceUrl: string): void {
+    const protocol = getExternalProtocol(targetUrl);
+    if (!protocol || !isConfirmableExternalProtocol(protocol)) {
+      logSecurityEvent("Blocked unsupported external protocol", { targetUrl });
+      return;
+    }
+
+    const prompt = buildExternalProtocolPrompt(targetUrl, sourceUrl);
+    const choice = dialog.showMessageBoxSync(this.state.mainWindow!, {
+      buttons: ["Open", "Cancel"],
+      cancelId: 1,
+      defaultId: 1,
+      detail: prompt.detail,
+      message: prompt.message,
+      noLink: true,
+      type: "question",
+    });
+
+    if (choice === 0) {
+      shell.openExternal(targetUrl).catch((error) => {
+        console.error("[TabManager] Failed to open external URL:", error);
+      });
+    }
   }
-  return null;
 }
