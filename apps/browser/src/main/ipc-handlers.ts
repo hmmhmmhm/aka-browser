@@ -5,6 +5,7 @@
 import { ipcMain, app, nativeTheme } from "electron";
 import { AppState } from "./types";
 import { BrowsingDataManager } from "./browsing-data-manager";
+import { DownloadManager } from "./download-manager";
 import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
 import { BookmarkManager } from "./bookmark-manager";
@@ -18,6 +19,7 @@ import {
 } from "./ipc/bookmark-favicon-handlers";
 import { registerPermissionHandlers } from "./ipc/permission-handlers";
 import { registerBrowsingDataHandlers } from "./ipc/browsing-data-handlers";
+import { registerDownloadHandlers } from "./ipc/download-handlers";
 import { LanguageManager } from "./language-manager";
 
 export class IPCHandlers {
@@ -30,6 +32,7 @@ export class IPCHandlers {
   private languageManager: LanguageManager;
   private permissionManager: PermissionManager;
   private browsingDataManager: BrowsingDataManager;
+  private downloadManager: DownloadManager;
 
   constructor(
     state: AppState,
@@ -40,7 +43,8 @@ export class IPCHandlers {
     themeColorCache: ThemeColorCache,
     languageManager: LanguageManager,
     permissionManager: PermissionManager,
-    browsingDataManager: BrowsingDataManager
+    browsingDataManager: BrowsingDataManager,
+    downloadManager: DownloadManager
   ) {
     this.state = state;
     this.tabManager = tabManager;
@@ -51,6 +55,7 @@ export class IPCHandlers {
     this.languageManager = languageManager;
     this.permissionManager = permissionManager;
     this.browsingDataManager = browsingDataManager;
+    this.downloadManager = downloadManager;
   }
 
   /**
@@ -65,6 +70,7 @@ export class IPCHandlers {
     this.registerAppHandlers();
     registerPermissionHandlers(this.state, this.permissionManager);
     registerBrowsingDataHandlers(this.state, this.browsingDataManager);
+    registerDownloadHandlers(this.state, this.downloadManager);
     registerBookmarkHandlers(this.state, this.bookmarkManager);
     registerFaviconHandlers(this.faviconCache);
   }

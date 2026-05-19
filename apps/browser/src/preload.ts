@@ -232,4 +232,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     clearSiteData: () => ipcRenderer.invoke("browsing-data-clear-site-data"),
     clearAll: () => ipcRenderer.invoke("browsing-data-clear-all"),
   },
+
+  downloads: {
+    list: () => ipcRenderer.invoke("downloads-list"),
+    clearCompleted: () => ipcRenderer.invoke("downloads-clear-completed"),
+    openInFolder: (id: string) => ipcRenderer.invoke("downloads-open-in-folder", id),
+    onUpdated: (callback: (items: any[]) => void) => {
+      const listener = (_event: any, items: any[]) => callback(items);
+      ipcRenderer.on("downloads-updated", listener);
+      return () => ipcRenderer.removeListener("downloads-updated", listener);
+    },
+  },
 });

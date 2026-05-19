@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Database, Info, Star } from "lucide-react";
+import { Database, Download, Info, Star } from "lucide-react";
 import appIcon from "../../../assets/icon.png";
 import { AboutView } from "./settings/about-view";
 import { BookmarkDialog } from "./settings/bookmark-dialog";
 import { BookmarksView } from "./settings/bookmarks-view";
 import { BrowsingDataView } from "./settings/browsing-data-view";
+import { DownloadsView } from "./settings/downloads-view";
 import { LanguageView } from "./settings/language-view";
 import { MainView } from "./settings/main-view";
 import { Bookmark, SettingsSection, SettingsView } from "./settings/types";
@@ -64,6 +65,13 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
           icon: <Database size={20} />,
           hasDetail: true,
           onClick: () => setCurrentView("browsing-data"),
+        },
+        {
+          id: "downloads",
+          label: t("downloads"),
+          icon: <Download size={20} />,
+          hasDetail: true,
+          onClick: () => setCurrentView("downloads"),
         },
         {
           id: "about",
@@ -164,6 +172,9 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
           isDark={isDark}
           onBack={() => setCurrentView("main")}
         />
+      )}
+      {currentView === "downloads" && (
+        <DownloadsView isDark={isDark} onBack={() => setCurrentView("main")} />
       )}
 
       {showBookmarkDialog && (

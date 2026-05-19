@@ -64,6 +64,20 @@ interface ClearResult {
   target: string;
 }
 
+type DownloadState = "active" | "cancelled" | "completed" | "interrupted";
+
+interface DownloadItem {
+  endedAt?: number;
+  filename: string;
+  id: string;
+  receivedBytes: number;
+  savePath: string;
+  startedAt: number;
+  state: DownloadState;
+  totalBytes: number;
+  url: string;
+}
+
 export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
@@ -184,6 +198,13 @@ export interface ElectronAPI {
     clearCache: () => Promise<ClearResult>;
     clearSiteData: () => Promise<ClearResult>;
     clearAll: () => Promise<ClearResult[]>;
+  };
+
+  downloads: {
+    list: () => Promise<DownloadItem[]>;
+    clearCompleted: () => Promise<DownloadItem[]>;
+    openInFolder: (id: string) => Promise<boolean>;
+    onUpdated: (callback: (items: DownloadItem[]) => void) => () => void;
   };
 }
 
