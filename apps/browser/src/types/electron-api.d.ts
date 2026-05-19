@@ -206,6 +206,17 @@ export interface ElectronAPI {
     openInFolder: (id: string) => Promise<boolean>;
     onUpdated: (callback: (items: DownloadItem[]) => void) => () => void;
   };
+
+  pageTools: {
+    find: (text: string, forward?: boolean) => Promise<void>;
+    findNext: (text: string) => Promise<void>;
+    findPrevious: (text: string) => Promise<void>;
+    stopFind: () => Promise<void>;
+    zoomIn: () => Promise<number>;
+    zoomOut: () => Promise<number>;
+    zoomReset: () => Promise<number>;
+    print: () => Promise<void>;
+  };
 }
 
 declare global {

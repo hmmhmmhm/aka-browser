@@ -20,6 +20,7 @@ import {
 import { registerPermissionHandlers } from "./ipc/permission-handlers";
 import { registerBrowsingDataHandlers } from "./ipc/browsing-data-handlers";
 import { registerDownloadHandlers } from "./ipc/download-handlers";
+import { registerPageToolHandlers } from "./ipc/page-tool-handlers";
 import { LanguageManager } from "./language-manager";
 
 export class IPCHandlers {
@@ -71,6 +72,7 @@ export class IPCHandlers {
     registerPermissionHandlers(this.state, this.permissionManager);
     registerBrowsingDataHandlers(this.state, this.browsingDataManager);
     registerDownloadHandlers(this.state, this.downloadManager);
+    registerPageToolHandlers(this.state);
     registerBookmarkHandlers(this.state, this.bookmarkManager);
     registerFaviconHandlers(this.faviconCache);
   }

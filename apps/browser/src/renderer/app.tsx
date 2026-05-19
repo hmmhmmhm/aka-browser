@@ -5,6 +5,7 @@ import PhoneFrame from "./components/phone-frame";
 import TabOverview from "./components/tab-overview";
 import Settings from "./components/settings";
 import MenuOverlay from "./components/menu-overlay";
+import { FindInPage } from "./components/find-in-page";
 import { useBrowserPageState } from "./hooks/use-browser-page-state";
 import { getWebContentsBounds, normalizeNavigationUrl } from "./lib/app-utils";
 
@@ -17,6 +18,7 @@ function App() {
   const [showTabOverview, setShowTabOverview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showFind, setShowFind] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const webContainerRef = useRef<HTMLDivElement>(null);
   const pageState = useBrowserPageState(orientation);
@@ -210,8 +212,12 @@ function App() {
           currentUrl={pageState.currentUrl}
           currentTitle={pageState.pageTitle}
           onClose={() => setShowMenu(false)}
+          onOpenFind={() => setShowFind(true)}
           onOpenSettings={() => setShowSettings(true)}
         />
+      )}
+      {showFind && (
+        <FindInPage theme={systemTheme} onClose={() => setShowFind(false)} />
       )}
     </div>
   );

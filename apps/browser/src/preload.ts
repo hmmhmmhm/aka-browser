@@ -243,4 +243,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () => ipcRenderer.removeListener("downloads-updated", listener);
     },
   },
+
+  pageTools: {
+    find: (text: string, forward?: boolean) =>
+      ipcRenderer.invoke("page-find", text, forward),
+    findNext: (text: string) => ipcRenderer.invoke("page-find-next", text),
+    findPrevious: (text: string) =>
+      ipcRenderer.invoke("page-find-previous", text),
+    stopFind: () => ipcRenderer.invoke("page-stop-find"),
+    zoomIn: () => ipcRenderer.invoke("page-zoom-in"),
+    zoomOut: () => ipcRenderer.invoke("page-zoom-out"),
+    zoomReset: () => ipcRenderer.invoke("page-zoom-reset"),
+    print: () => ipcRenderer.invoke("page-print"),
+  },
 });

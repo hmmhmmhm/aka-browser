@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Star, Settings } from "lucide-react";
+import type { ReactNode } from "react";
+import { Printer, Search, Settings, Star, ZoomIn, ZoomOut } from "lucide-react";
 import { useI18n } from "../i18n/i18n-context";
 
 interface MenuOverlayProps {
@@ -7,6 +8,7 @@ interface MenuOverlayProps {
   currentUrl: string;
   currentTitle: string;
   onClose: () => void;
+  onOpenFind: () => void;
   onOpenSettings: () => void;
 }
 
@@ -15,6 +17,7 @@ function MenuOverlay({
   currentUrl,
   currentTitle,
   onClose,
+  onOpenFind,
   onOpenSettings,
 }: MenuOverlayProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -77,6 +80,11 @@ function MenuOverlay({
     onOpenSettings();
   };
 
+  const runPageTool = (action: () => void) => {
+    action();
+    onClose();
+  };
+
   const isBlankPage = currentUrl.startsWith("file://") && currentUrl.includes("blank-page.html");
 
   return (
@@ -94,23 +102,56 @@ function MenuOverlay({
       >
         <div className="py-2">
           {!isBlankPage && (
-            <button
-              onClick={handleToggleBookmark}
-              className={`w-full px-4 py-3 flex items-center gap-3 transition-colors ${
-                isDark
-                  ? "hover:bg-[rgba(255,255,255,0.1)]"
-                  : "hover:bg-[rgba(0,0,0,0.05)]"
-              }`}
-            >
-              <Star
-                size={18}
-                strokeWidth={2}
-                fill={isBookmarked ? "currentColor" : "none"}
-              />
-              <span className="text-sm font-medium">
+            <>
+              <MenuButton isDark={isDark} onClick={handleToggleBookmark}>
+                <Star
+                  size={18}
+                  strokeWidth={2}
+                  fill={isBookmarked ? "currentColor" : "none"}
+                />
                 {isBookmarked ? t("removeFromFavorites") : t("addToFavorites")}
-              </span>
-            </button>
+              </MenuButton>
+              <MenuButton isDark={isDark} onClick={() => runPageTool(onOpenFind)}>
+                <Search size={18} strokeWidth={2} />
+                {t("findInPage")}
+              </MenuButton>
+              <MenuButton
+                isDark={isDark}
+                onClick={() =>
+                  runPageTool(() => window.electronAPI?.pageTools.zoomIn())
+                }
+              >
+                <ZoomIn size={18} strokeWidth={2} />
+                {t("zoomIn")}
+              </MenuButton>
+              <MenuButton
+                isDark={isDark}
+                onClick={() =>
+                  runPageTool(() => window.electronAPI?.pageTools.zoomOut())
+                }
+              >
+                <ZoomOut size={18} strokeWidth={2} />
+                {t("zoomOut")}
+              </MenuButton>
+              <MenuButton
+                isDark={isDark}
+                onClick={() =>
+                  runPageTool(() => window.electronAPI?.pageTools.zoomReset())
+                }
+              >
+                <ZoomOut size={18} strokeWidth={2} />
+                {t("resetZoom")}
+              </MenuButton>
+              <MenuButton
+                isDark={isDark}
+                onClick={() =>
+                  runPageTool(() => window.electronAPI?.pageTools.print())
+                }
+              >
+                <Printer size={18} strokeWidth={2} />
+                {t("print")}
+              </MenuButton>
+            </>
           )}
           <button
             onClick={handleSettingsClick}
@@ -126,6 +167,29 @@ function MenuOverlay({
         </div>
       </div>
     </div>
+  );
+}
+
+function MenuButton({
+  children,
+  isDark,
+  onClick,
+}: {
+  children: ReactNode;
+  isDark: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full px-4 py-3 flex items-center gap-3 transition-colors ${
+        isDark
+          ? "hover:bg-[rgba(255,255,255,0.1)]"
+          : "hover:bg-[rgba(0,0,0,0.05)]"
+      }`}
+    >
+      <span className="contents">{children}</span>
+    </button>
   );
 }
 
