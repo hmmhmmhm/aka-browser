@@ -6,7 +6,8 @@ export type SettingsView =
   | "bookmarks"
   | "language"
   | "browsing-data"
-  | "downloads";
+  | "downloads"
+  | "site-permissions";
 
 export interface SettingsSection {
   id: string;
