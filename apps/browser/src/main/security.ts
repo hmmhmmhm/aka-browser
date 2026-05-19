@@ -3,12 +3,14 @@
  */
 
 import { 
-  ALLOWED_PROTOCOLS, 
-  DANGEROUS_PROTOCOLS, 
   BLOCKED_DOMAINS,
   IPHONE_USER_AGENT,
   DESKTOP_USER_AGENT
 } from "./constants";
+import {
+  classifyNavigationTarget,
+  sanitizeNavigationInput,
+} from "./security-policy";
 
 /**
  * Log security events
@@ -28,23 +30,15 @@ export function logSecurityEvent(message: string, details?: any): void {
  */
 export function isValidUrl(urlString: string): boolean {
   try {
+    const decision = classifyNavigationTarget(urlString);
+    if (decision.kind !== "web") {
+      if (decision.kind === "blocked") {
+        logSecurityEvent(decision.reason, { url: urlString });
+      }
+      return false;
+    }
+
     const url = new URL(urlString);
-
-    // Block dangerous protocols
-    if (DANGEROUS_PROTOCOLS.includes(url.protocol)) {
-      logSecurityEvent(`Blocked dangerous protocol: ${url.protocol}`, {
-        url: urlString,
-      });
-      return false;
-    }
-
-    // Only allow http and https protocols
-    if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
-      logSecurityEvent(`Blocked invalid protocol: ${url.protocol}`, {
-        url: urlString,
-      });
-      return false;
-    }
 
     // Check against blocked domains (exact match or subdomain)
     const isBlocked = BLOCKED_DOMAINS.some(
@@ -72,33 +66,7 @@ export function isValidUrl(urlString: string): boolean {
  * Sanitize URL by adding appropriate protocol
  */
 export function sanitizeUrl(urlString: string): string {
-  let url = urlString.trim();
-
-  // If already has a valid protocol, return as-is
-  if (
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("file://")
-  ) {
-    return url;
-  }
-
-  // If no protocol, add appropriate protocol
-  // Check if it's a local URL (localhost or private IP)
-  const isLocalUrl =
-    /^(localhost|127\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?/i.test(
-      url
-    );
-
-  if (isLocalUrl) {
-    // Use http:// for local development servers
-    url = "http://" + url;
-  } else {
-    // Use https:// for external sites
-    url = "https://" + url;
-  }
-
-  return url;
+  return sanitizeNavigationInput(urlString);
 }
 
 /**

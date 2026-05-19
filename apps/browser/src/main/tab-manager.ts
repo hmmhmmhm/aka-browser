@@ -18,6 +18,7 @@ import {
   getUserAgentForUrl,
   logSecurityEvent,
 } from "./security";
+import { classifyNavigationTarget } from "./security-policy";
 import { ThemeColorCache } from "./theme-cache";
 import { loadBlankPage } from "./tabs/tab-page-loader";
 import {
@@ -345,11 +346,15 @@ export class TabManager {
 
     // Block invalid navigation URLs
     contents.on("will-navigate", (_event: any, navigationUrl: string) => {
-      if (!isValidUrl(navigationUrl)) {
+      const decision = classifyNavigationTarget(navigationUrl);
+      if (decision.kind !== "web" || !isValidUrl(decision.url)) {
         _event.preventDefault();
-        logSecurityEvent("Navigation blocked to invalid URL", {
-          url: navigationUrl,
-        });
+        logSecurityEvent(
+          decision.kind === "blocked"
+            ? decision.reason
+            : "External protocol requires confirmation",
+          { url: navigationUrl }
+        );
         if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
           this.state.mainWindow.webContents.send(
             "navigation-blocked",
@@ -357,17 +362,23 @@ export class TabManager {
           );
         }
       } else {
-        contents.setUserAgent(getUserAgentForUrl(navigationUrl));
+        contents.setUserAgent(getUserAgentForUrl(decision.url));
       }
     });
 
     // Intercept new-window requests and open them as tabs instead
     contents.setWindowOpenHandler(({ url }: { url: string }) => {
-      if (!isValidUrl(url)) {
-        logSecurityEvent("Blocked new window with invalid URL", { url });
+      const decision = classifyNavigationTarget(url);
+      if (decision.kind !== "web" || !isValidUrl(decision.url)) {
+        logSecurityEvent(
+          decision.kind === "blocked"
+            ? decision.reason
+            : "External protocol requires confirmation",
+          { url }
+        );
         return { action: "deny" };
       }
-      const newTab = this.createTab(url);
+      const newTab = this.createTab(decision.url);
       this.switchToTab(newTab.id);
       return { action: "deny" };
     });
