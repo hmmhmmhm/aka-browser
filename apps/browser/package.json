@@ -21,6 +21,7 @@
     "evs:verify": "node scripts/evs-sign.js --verify",
     "check-types": "tsc --noEmit",
     "lint": "tsc --noEmit --pretty false",
+    "test": "vitest run",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
     "outdated": "npm outdated"
@@ -48,7 +49,8 @@
     "esbuild": "^0.28.0",
     "tailwindcss": "^4.3.0",
     "typescript": "5.9.2",
-    "vite": "^8.0.13"
+    "vite": "^8.0.13",
+    "vitest": "^3.2.4"
   },
   "build": {
     "appId": "com.aka-browser.app",
