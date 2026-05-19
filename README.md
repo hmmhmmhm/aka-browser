@@ -15,7 +15,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://reactjs.org/)
 
-[Features](#-key-features) • [Installation](#-installation--development) • [Building](#building-for-production) • [DRM Support](#-drm-content-playback)
+[Features](#-key-features) • [Installation](#-installation--development) • [Building](#building-for-production) • [DRM Support](#-drm-content-playback) • [Release Readiness](docs/RELEASE_READINESS.md)
 
 </div>
 
