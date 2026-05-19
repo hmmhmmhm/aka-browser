@@ -4,6 +4,7 @@
 
 import { ipcMain, app, nativeTheme } from "electron";
 import { AppState } from "./types";
+import { BrowsingDataManager } from "./browsing-data-manager";
 import { TabManager } from "./tab-manager";
 import { WindowManager } from "./window-manager";
 import { BookmarkManager } from "./bookmark-manager";
@@ -16,6 +17,7 @@ import {
   registerFaviconHandlers,
 } from "./ipc/bookmark-favicon-handlers";
 import { registerPermissionHandlers } from "./ipc/permission-handlers";
+import { registerBrowsingDataHandlers } from "./ipc/browsing-data-handlers";
 import { LanguageManager } from "./language-manager";
 
 export class IPCHandlers {
@@ -27,6 +29,7 @@ export class IPCHandlers {
   private themeColorCache: ThemeColorCache;
   private languageManager: LanguageManager;
   private permissionManager: PermissionManager;
+  private browsingDataManager: BrowsingDataManager;
 
   constructor(
     state: AppState,
@@ -36,7 +39,8 @@ export class IPCHandlers {
     faviconCache: FaviconCache,
     themeColorCache: ThemeColorCache,
     languageManager: LanguageManager,
-    permissionManager: PermissionManager
+    permissionManager: PermissionManager,
+    browsingDataManager: BrowsingDataManager
   ) {
     this.state = state;
     this.tabManager = tabManager;
@@ -46,6 +50,7 @@ export class IPCHandlers {
     this.themeColorCache = themeColorCache;
     this.languageManager = languageManager;
     this.permissionManager = permissionManager;
+    this.browsingDataManager = browsingDataManager;
   }
 
   /**
@@ -59,6 +64,7 @@ export class IPCHandlers {
     this.registerOrientationHandlers();
     this.registerAppHandlers();
     registerPermissionHandlers(this.state, this.permissionManager);
+    registerBrowsingDataHandlers(this.state, this.browsingDataManager);
     registerBookmarkHandlers(this.state, this.bookmarkManager);
     registerFaviconHandlers(this.faviconCache);
   }

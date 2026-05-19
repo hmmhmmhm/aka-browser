@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 
-export type SettingsView = "main" | "about" | "bookmarks" | "language";
+export type SettingsView =
+  | "main"
+  | "about"
+  | "bookmarks"
+  | "language"
+  | "browsing-data";
 
 export interface SettingsSection {
   id: string;

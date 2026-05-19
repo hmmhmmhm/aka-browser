@@ -224,4 +224,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("permissions-set", origin, permission, decision),
     clear: (origin?: string) => ipcRenderer.invoke("permissions-clear", origin),
   },
+
+  browsingData: {
+    clearHistory: () => ipcRenderer.invoke("browsing-data-clear-history"),
+    clearCookies: () => ipcRenderer.invoke("browsing-data-clear-cookies"),
+    clearCache: () => ipcRenderer.invoke("browsing-data-clear-cache"),
+    clearSiteData: () => ipcRenderer.invoke("browsing-data-clear-site-data"),
+    clearAll: () => ipcRenderer.invoke("browsing-data-clear-all"),
+  },
 });

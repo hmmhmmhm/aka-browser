@@ -58,6 +58,12 @@ interface SitePermissionEntry {
   updatedAt: number;
 }
 
+interface ClearResult {
+  error?: string;
+  ok: boolean;
+  target: string;
+}
+
 export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
@@ -170,6 +176,14 @@ export interface ElectronAPI {
       decision: PermissionDecision
     ) => Promise<SitePermissionEntry[]>;
     clear: (origin?: string) => Promise<SitePermissionEntry[]>;
+  };
+
+  browsingData: {
+    clearHistory: () => Promise<ClearResult>;
+    clearCookies: () => Promise<ClearResult>;
+    clearCache: () => Promise<ClearResult>;
+    clearSiteData: () => Promise<ClearResult>;
+    clearAll: () => Promise<ClearResult[]>;
   };
 }
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Info, Star } from "lucide-react";
+import { Database, Info, Star } from "lucide-react";
 import appIcon from "../../../assets/icon.png";
 import { AboutView } from "./settings/about-view";
 import { BookmarkDialog } from "./settings/bookmark-dialog";
 import { BookmarksView } from "./settings/bookmarks-view";
+import { BrowsingDataView } from "./settings/browsing-data-view";
 import { LanguageView } from "./settings/language-view";
 import { MainView } from "./settings/main-view";
 import { Bookmark, SettingsSection, SettingsView } from "./settings/types";
@@ -56,6 +57,13 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
           icon: <Info size={20} />,
           hasDetail: true,
           onClick: () => setCurrentView("language"),
+        },
+        {
+          id: "browsing-data",
+          label: t("browsingData"),
+          icon: <Database size={20} />,
+          hasDetail: true,
+          onClick: () => setCurrentView("browsing-data"),
         },
         {
           id: "about",
@@ -150,6 +158,12 @@ function Settings({ theme, orientation, onClose }: SettingsProps) {
       )}
       {currentView === "language" && (
         <LanguageView isDark={isDark} onBack={() => setCurrentView("main")} />
+      )}
+      {currentView === "browsing-data" && (
+        <BrowsingDataView
+          isDark={isDark}
+          onBack={() => setCurrentView("main")}
+        />
       )}
 
       {showBookmarkDialog && (
