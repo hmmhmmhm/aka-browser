@@ -12,6 +12,12 @@ import { FaviconCache } from "./favicon-cache";
 import { IPCHandlers } from "./ipc-handlers";
 import { TrayManager } from "./tray-manager";
 import { AppLifecycle } from "./app-lifecycle";
+import { LanguageManager } from "./language-manager";
+import { toChromiumLocale } from "../shared/language";
+
+const languageManager = new LanguageManager();
+const initialLanguage = languageManager.getState().effectiveLanguage;
+app.commandLine.appendSwitch("lang", toChromiumLocale(initialLanguage));
 
 // Initialize application state
 const appState: AppState = {
@@ -23,6 +29,7 @@ const appState: AppState = {
   tabs: [],
   activeTabId: null,
   latestThemeColor: null,
+  language: initialLanguage,
 };
 
 // Initialize managers
@@ -32,7 +39,7 @@ const faviconCache = new FaviconCache();
 const tabManager = new TabManager(appState, themeColorCache);
 const windowManager = new WindowManager(appState, tabManager);
 const trayManager = new TrayManager(appState, windowManager);
-const ipcHandlers = new IPCHandlers(appState, tabManager, windowManager, bookmarkManager, faviconCache, themeColorCache);
+const ipcHandlers = new IPCHandlers(appState, tabManager, windowManager, bookmarkManager, faviconCache, themeColorCache, languageManager);
 const appLifecycle = new AppLifecycle(appState, windowManager, trayManager);
 
 // Initialize Widevine

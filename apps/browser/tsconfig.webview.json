@@ -13,6 +13,6 @@
     "types": ["node"],
     "composite": true
   },
-  "include": ["src/webview-preload.ts"],
+  "include": ["src/webview-preload.ts", "src/webview/**/*.ts"],
   "exclude": ["node_modules", "dist", "dist-renderer", "release"]
 }

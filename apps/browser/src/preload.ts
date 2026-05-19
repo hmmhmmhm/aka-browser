@@ -56,6 +56,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // App version
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  getLanguageState: () => ipcRenderer.invoke("get-language-state"),
+  setPreferredLanguage: (language: "system" | "en" | "ko") =>
+    ipcRenderer.invoke("set-preferred-language", language),
+  onLanguageChanged: (callback: (state: any) => void) => {
+    const listener = (_event: any, state: any) => callback(state);
+    ipcRenderer.on("language-changed", listener);
+    return () => ipcRenderer.removeListener("language-changed", listener);
+  },
 
   // Tab management APIs
   tabs: {

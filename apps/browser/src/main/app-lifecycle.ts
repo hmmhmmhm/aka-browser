@@ -2,11 +2,12 @@
  * Application lifecycle management
  */
 
-import { app, BrowserWindow, nativeImage, components } from "electron";
+import { app, BrowserWindow, nativeImage, components, session } from "electron";
 import path from "path";
 import { AppState } from "./types";
 import { WindowManager } from "./window-manager";
 import { TrayManager } from "./tray-manager";
+import { toAcceptLanguage } from "../shared/language";
 
 export class AppLifecycle {
   private state: AppState;
@@ -89,6 +90,8 @@ export class AppLifecycle {
       "[Widevine] Using castlabs electron-releases with built-in Widevine CDM"
     );
 
+    this.configureLanguageHeaders();
+
     // Set dock icon for macOS
     if (process.platform === "darwin") {
       const iconPath = path.join(__dirname, "../assets/icon.png");
@@ -123,6 +126,16 @@ export class AppLifecycle {
 
     app.on("before-quit", () => {
       this.trayManager.destroy();
+    });
+  }
+
+  private configureLanguageHeaders(): void {
+    const webSession = session.fromPartition("persist:main");
+    webSession.webRequest.onBeforeSendHeaders((details, callback) => {
+      details.requestHeaders["Accept-Language"] = toAcceptLanguage(
+        this.state.language
+      );
+      callback({ requestHeaders: details.requestHeaders });
     });
   }
 }

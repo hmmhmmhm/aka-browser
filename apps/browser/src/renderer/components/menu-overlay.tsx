@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Star, Settings } from "lucide-react";
+import { useI18n } from "../i18n/i18n-context";
 
 interface MenuOverlayProps {
   theme: "light" | "dark";
@@ -18,6 +19,7 @@ function MenuOverlay({
 }: MenuOverlayProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const isDark = theme === "dark";
+  const { t } = useI18n();
 
   useEffect(() => {
     checkBookmarkStatus();
@@ -106,7 +108,7 @@ function MenuOverlay({
                 fill={isBookmarked ? "currentColor" : "none"}
               />
               <span className="text-sm font-medium">
-                {isBookmarked ? "Remove from Favorites" : "Add to Favorites"}
+                {isBookmarked ? t("removeFromFavorites") : t("addToFavorites")}
               </span>
             </button>
           )}
@@ -119,7 +121,7 @@ function MenuOverlay({
             }`}
           >
             <Settings size={18} strokeWidth={2} />
-            <span className="text-sm font-medium">Settings</span>
+            <span className="text-sm font-medium">{t("settings")}</span>
           </button>
         </div>
       </div>
