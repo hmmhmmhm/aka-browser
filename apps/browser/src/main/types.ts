@@ -3,6 +3,7 @@
  */
 
 import { WebContentsView } from "electron";
+import { EffectiveLanguage } from "../shared/language";
 
 export interface Tab {
   id: string;
@@ -23,4 +24,5 @@ export interface AppState {
   tabs: Tab[];
   activeTabId: string | null;
   latestThemeColor: string | null;
+  language: EffectiveLanguage;
 }

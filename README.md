@@ -6,7 +6,7 @@
 
 **Your companion browser for Netflix, Twitter(X), and everything in between.**
 
-🌐 **[Visit our website](https://browser.aka.page)** | 📚 **[Technical Wiki](https://deepwiki.com/hmmhmmhm/aka-browser)** | 🚀 **Currently in Beta** — Stable Release coming in November!
+🌐 **[Visit our website](https://browser.aka.page)** | 📚 **[Technical Wiki](https://deepwiki.com/hmmhmmhm/aka-browser)** | 🚀 **Stage-0 Beta** — Stable release schedule will be announced after beta validation.
 
 <img src="https://i.imgur.com/YhQkOP5.png" alt="aka-browser screenshot" width="600"/>
 

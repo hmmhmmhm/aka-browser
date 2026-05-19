@@ -1,6 +1,7 @@
 import { useState } from "react";
 import WindowControls from "./window-controls";
 import NavigationControls from "./navigation-controls";
+import { useI18n } from "../i18n/i18n-context";
 
 interface TopBarProps {
   pageTitle: string;
@@ -29,6 +30,7 @@ function TopBar({
 }: TopBarProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const { t } = useI18n();
 
   const handleTitleClick = () => {
     setIsEditing(true);
@@ -90,7 +92,7 @@ function TopBar({
                 ? 'text-[rgba(255,255,255,0.85)] placeholder:text-[rgba(255,255,255,0.4)]'
                 : 'text-[rgba(0,0,0,0.85)] placeholder:text-[rgba(0,0,0,0.4)]'
             }`}
-            placeholder="Enter URL..."
+            placeholder={t("enterUrl")}
           />
         ) : (
           <>

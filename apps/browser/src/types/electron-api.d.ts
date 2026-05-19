@@ -35,6 +35,15 @@ interface Bookmark {
   updatedAt: number;
 }
 
+type PreferredLanguage = "system" | "en" | "ko";
+type EffectiveLanguage = "en" | "ko";
+
+interface LanguageState {
+  effectiveLanguage: EffectiveLanguage;
+  preferredLanguage: PreferredLanguage;
+  systemLanguage: EffectiveLanguage;
+}
+
 export interface ElectronAPI {
   platform: NodeJS.Platform;
   closeWindow: () => void;
@@ -69,6 +78,9 @@ export interface ElectronAPI {
 
   // App version
   getAppVersion: () => Promise<string>;
+  getLanguageState: () => Promise<LanguageState>;
+  setPreferredLanguage: (language: PreferredLanguage) => Promise<LanguageState>;
+  onLanguageChanged: (callback: (state: LanguageState) => void) => () => void;
 
   // Tab management APIs
   tabs: {

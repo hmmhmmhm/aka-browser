@@ -10,6 +10,11 @@ import { BookmarkManager } from "./bookmark-manager";
 import { FaviconCache } from "./favicon-cache";
 import { isValidUrl, sanitizeUrl, getUserAgentForUrl, logSecurityEvent } from "./security";
 import { ThemeColorCache } from "./theme-cache";
+import {
+  registerBookmarkHandlers,
+  registerFaviconHandlers,
+} from "./ipc/bookmark-favicon-handlers";
+import { LanguageManager } from "./language-manager";
 
 export class IPCHandlers {
   private state: AppState;
@@ -18,6 +23,7 @@ export class IPCHandlers {
   private bookmarkManager: BookmarkManager;
   private faviconCache: FaviconCache;
   private themeColorCache: ThemeColorCache;
+  private languageManager: LanguageManager;
 
   constructor(
     state: AppState,
@@ -25,7 +31,8 @@ export class IPCHandlers {
     windowManager: WindowManager,
     bookmarkManager: BookmarkManager,
     faviconCache: FaviconCache,
-    themeColorCache: ThemeColorCache
+    themeColorCache: ThemeColorCache,
+    languageManager: LanguageManager
   ) {
     this.state = state;
     this.tabManager = tabManager;
@@ -33,6 +40,7 @@ export class IPCHandlers {
     this.bookmarkManager = bookmarkManager;
     this.faviconCache = faviconCache;
     this.themeColorCache = themeColorCache;
+    this.languageManager = languageManager;
   }
 
   /**
@@ -45,8 +53,8 @@ export class IPCHandlers {
     this.registerThemeHandlers();
     this.registerOrientationHandlers();
     this.registerAppHandlers();
-    this.registerBookmarkHandlers();
-    this.registerFaviconHandlers();
+    registerBookmarkHandlers(this.state, this.bookmarkManager);
+    registerFaviconHandlers(this.faviconCache);
   }
 
   /**
@@ -385,104 +393,21 @@ export class IPCHandlers {
     ipcMain.handle("get-app-version", () => {
       return app.getVersion();
     });
-  }
 
-  /**
-   * Notify all windows about bookmark updates
-   */
-  private notifyBookmarkUpdate(): void {
-    // Notify main window
-    if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
-      this.state.mainWindow.webContents.send("bookmarks-updated");
-    }
-    
-    // Notify WebContentsView
-    if (this.state.webContentsView && !this.state.webContentsView.webContents.isDestroyed()) {
-      this.state.webContentsView.webContents.send("bookmarks-updated");
-    }
-  }
-
-  /**
-   * Register bookmark management handlers
-   */
-  private registerBookmarkHandlers(): void {
-    // Get all bookmarks
-    ipcMain.handle("bookmarks-get-all", () => {
-      return this.bookmarkManager.getAll();
+    ipcMain.handle("get-language-state", () => {
+      return this.languageManager.getState();
     });
 
-    // Get bookmark by ID
-    ipcMain.handle("bookmarks-get-by-id", (_event, id: string) => {
-      return this.bookmarkManager.getById(id);
-    });
+    ipcMain.handle("set-preferred-language", (_event, language: any) => {
+      const nextState = this.languageManager.setPreferredLanguage(language);
+      this.state.language = nextState.effectiveLanguage;
 
-    // Check if URL is bookmarked
-    ipcMain.handle("bookmarks-is-bookmarked", (_event, url: string) => {
-      return this.bookmarkManager.isBookmarked(url);
-    });
+      if (this.state.mainWindow && !this.state.mainWindow.isDestroyed()) {
+        this.state.mainWindow.webContents.send("language-changed", nextState);
+      }
 
-    // Add bookmark
-    ipcMain.handle("bookmarks-add", (_event, title: string, url: string, favicon?: string) => {
-      const bookmark = this.bookmarkManager.add(title, url, favicon);
-      this.notifyBookmarkUpdate();
-      return bookmark;
-    });
-
-    // Update bookmark
-    ipcMain.handle("bookmarks-update", (_event, id: string, updates: any) => {
-      const bookmark = this.bookmarkManager.update(id, updates);
-      this.notifyBookmarkUpdate();
-      return bookmark;
-    });
-
-    // Remove bookmark
-    ipcMain.handle("bookmarks-remove", (_event, id: string) => {
-      const result = this.bookmarkManager.remove(id);
-      this.notifyBookmarkUpdate();
-      return result;
-    });
-
-    // Remove bookmark by URL
-    ipcMain.handle("bookmarks-remove-by-url", (_event, url: string) => {
-      const result = this.bookmarkManager.removeByUrl(url);
-      this.notifyBookmarkUpdate();
-      return result;
-    });
-
-    // Clear all bookmarks
-    ipcMain.handle("bookmarks-clear", () => {
-      this.bookmarkManager.clear();
-      this.notifyBookmarkUpdate();
+      return nextState;
     });
   }
 
-  /**
-   * Register favicon cache handlers
-   */
-  private registerFaviconHandlers(): void {
-    // Get favicon with caching
-    ipcMain.handle("favicon-get", async (_event, url: string) => {
-      return this.faviconCache.getFavicon(url);
-    });
-
-    // Get favicon with fallback sources
-    ipcMain.handle("favicon-get-with-fallback", async (_event, pageUrl: string) => {
-      return this.faviconCache.getFaviconWithFallback(pageUrl);
-    });
-
-    // Check if favicon is cached
-    ipcMain.handle("favicon-is-cached", (_event, url: string) => {
-      return this.faviconCache.isCached(url);
-    });
-
-    // Clear favicon cache
-    ipcMain.handle("favicon-clear-cache", () => {
-      this.faviconCache.clearCache();
-    });
-
-    // Get cache size
-    ipcMain.handle("favicon-get-cache-size", () => {
-      return this.faviconCache.getCacheSize();
-    });
-  }
 }

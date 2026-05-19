@@ -9,9 +9,25 @@
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "turbo": "^2.5.8",
+    "prettier": "^3.8.3",
+    "turbo": "^2.9.14",
     "typescript": "5.9.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "@isaacs/brace-expansion": "5.0.1",
+      "ajv": "6.14.0",
+      "brace-expansion@<1.1.13": "1.1.13",
+      "brace-expansion@>=2.0.0 <2.0.3": "2.0.3",
+      "js-yaml": "4.1.1",
+      "lodash": "4.18.1",
+      "minimatch@<3.1.4": "3.1.4",
+      "minimatch@>=5.0.0 <5.1.8": "5.1.8",
+      "minimatch@>=9.0.0 <9.0.6": "9.0.9",
+      "minimatch@>=10.0.0 <10.2.1": "10.2.5",
+      "@xmldom/xmldom": "0.8.13",
+      "picomatch": "4.0.4"
+    }
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
