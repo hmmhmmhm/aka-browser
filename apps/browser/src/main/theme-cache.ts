@@ -52,6 +52,7 @@ export class ThemeColorCache {
     } catch (error) {
       console.error("[ThemeColorCache] Failed to load cache:", error);
       this.cache.clear();
+      this.moveCorruptCacheAside();
     }
   }
 
@@ -59,6 +60,7 @@ export class ThemeColorCache {
    * Save cache to disk immediately (synchronous)
    */
   private saveCacheImmediate(): void {
+    let tempPath = "";
     try {
       // Clear any pending debounced save
       if (this.saveTimeout) {
@@ -71,10 +73,29 @@ export class ThemeColorCache {
       for (const [domain, entry] of this.cache.entries()) {
         cacheData[domain] = entry;
       }
-      
-      fs.writeFileSync(this.cachePath, JSON.stringify(cacheData, null, 2), "utf-8");
+
+      fs.mkdirSync(path.dirname(this.cachePath), { recursive: true });
+      tempPath = `${this.cachePath}.${process.pid}.tmp`;
+      fs.writeFileSync(tempPath, JSON.stringify(cacheData, null, 2), "utf-8");
+      fs.renameSync(tempPath, this.cachePath);
     } catch (error) {
+      if (tempPath && fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
       console.error("[ThemeColorCache] Failed to save cache:", error);
+    }
+  }
+
+  private moveCorruptCacheAside(): void {
+    try {
+      if (!fs.existsSync(this.cachePath)) return;
+      fs.renameSync(this.cachePath, `${this.cachePath}.corrupt`);
+    } catch {
+      try {
+        fs.unlinkSync(this.cachePath);
+      } catch {
+        // Best effort cleanup only.
+      }
     }
   }
 
