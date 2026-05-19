@@ -24,6 +24,7 @@ pnpm release:check
 The command verifies:
 
 - TypeScript checks for every workspace task.
+- Unit tests for browser policy and persistence managers.
 - The repository lint task.
 - Production build output.
 - `pnpm audit --prod=false`.
@@ -63,16 +64,17 @@ Last checked: 2026-05-19 KST.
 1. Start from a clean `main` branch.
 2. Run `pnpm install --frozen-lockfile`.
 3. Run `pnpm release:check`.
-4. Run `pnpm --filter @aka-browser/browser evs:verify`.
-5. Build the app with `pnpm --filter @aka-browser/browser package`.
-6. Verify notarization with `spctl`.
-7. Launch the packaged app.
-8. Confirm a blank tab opens and Settings is reachable.
-9. Confirm Settings > Language shows System Default, English, and Korean.
-10. Confirm Widevine CDM is present in startup logs.
-11. Confirm at least one Widevine-protected streaming service starts playback.
-12. Upload release assets and checksums to GitHub Releases.
-13. Publish release notes with any skipped manual gates called out explicitly.
+4. Run the Stage 3 smoke checklist in `docs/STAGE_3_SMOKE_CHECKLIST.md`.
+5. Run `pnpm --filter @aka-browser/browser evs:verify`.
+6. Build the app with `pnpm --filter @aka-browser/browser package`.
+7. Verify notarization with `spctl`.
+8. Launch the packaged app.
+9. Confirm a blank tab opens and Settings is reachable.
+10. Confirm Settings > Language shows System Default, English, and Korean.
+11. Confirm Widevine CDM is present in startup logs.
+12. Confirm at least one Widevine-protected streaming service starts playback.
+13. Upload release assets and checksums to GitHub Releases.
+14. Publish release notes with any skipped manual gates called out explicitly.
 
 ## Blocking Rules
 
