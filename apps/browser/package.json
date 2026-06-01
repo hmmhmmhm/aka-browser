@@ -50,7 +50,7 @@
     "tailwindcss": "^4.3.0",
     "typescript": "5.9.2",
     "vite": "^8.0.13",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.0"
   },
   "build": {
     "appId": "com.aka-browser.app",
