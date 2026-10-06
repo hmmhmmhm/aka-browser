@@ -7,9 +7,17 @@ on:
       - main
 
 jobs:
+  select-runner:
+    uses: ./.github/workflows/select-local-runner.yml
+    with:
+      cloud-runner: macos-latest
+    secrets:
+      status-token: ${{ secrets.LOCAL_RUNNER_STATUS_TOKEN }}
+
   release-check:
     name: Release readiness
-    runs-on: macos-latest
+    needs: select-runner
+    runs-on: ${{ fromJSON(needs.select-runner.outputs.runner) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
