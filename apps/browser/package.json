@@ -43,20 +43,20 @@
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
-    "electron": "github:castlabs/electron-releases#v39.8.10+wvcus",
-    "electron-builder": "^26.8.1",
-    "electron-builder-squirrel-windows": "26.8.1",
-    "esbuild": "^0.28.0",
+    "electron": "github:castlabs/electron-releases#v42.11.10+wvcus",
+    "electron-builder": "^26.15.3",
+    "electron-builder-squirrel-windows": "26.15.3",
+    "esbuild": "^0.28.1",
     "tailwindcss": "^4.3.0",
     "typescript": "5.9.2",
-    "vite": "^8.0.13",
-    "vitest": "^3.2.4"
+    "vite": "8.0.16",
+    "vitest": "^4.1.11"
   },
   "build": {
     "appId": "com.aka-browser.app",
     "productName": "aka-browser",
     "electronDist": "node_modules/electron/dist",
-    "electronVersion": "39.8.10",
+    "electronVersion": "42.11.10",
     "npmRebuild": false,
     "asar": true,
     "asarUnpack": [
